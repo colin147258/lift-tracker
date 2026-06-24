@@ -199,6 +199,27 @@
   .ex-select:focus { border-color: rgba(255,255,255,0.25); }
 
   option { background: #1a1a22; color: #fff; }
+
+  /* Set tag badge */
+  .set-tag {
+    border-radius: 8px; padding: 0 8px; font-size: 11px; font-weight: 700;
+    cursor: pointer; border: 1.5px solid; flex-shrink: 0;
+    height: 42px; display: flex; align-items: center; white-space: nowrap;
+    font-family: inherit; background: none;
+  }
+  .set-tag.none { border-color: rgba(255,255,255,0.1); color: #383838; }
+  .set-tag.drop { background: rgba(233,69,96,0.15); border-color: rgba(233,69,96,0.5); color: #ff8fa3; }
+  .set-tag.half { background: rgba(255,149,0,0.15); border-color: rgba(255,149,0,0.5); color: #ffb84d; }
+  .set-tag.both { background: rgba(175,82,222,0.15); border-color: rgba(175,82,222,0.5); color: #cc88ef; }
+
+  /* Copy-down button */
+  .btn-copy-down {
+    background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.1);
+    color: #555; border-radius: 8px; cursor: pointer; font-family: inherit;
+    flex-shrink: 0; height: 42px; width: 38px; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-copy-down:active { background: rgba(255,255,255,0.14); color: #bbb; }
 </style>
 </head>
 <body>
@@ -582,7 +603,14 @@ function renderSessionCard(session, col) {
       const exDiv = el("div",{style:{marginBottom:"10px",paddingTop:i>0?"10px":"8px",borderTop:i>0?"1px solid rgba(255,255,255,0.05)":"none"}});
       exDiv.appendChild(el("div",{style:{fontSize:"12px",color:col.l,fontWeight:"700",marginBottom:"6px"}},ex.name));
       const setsRow = el("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap"}});
-      ex.sets.forEach(s=>setsRow.appendChild(el("span",{style:{fontSize:"12px",fontFamily:"monospace",color:"#bbb",background:"rgba(255,255,255,0.06)",borderRadius:"6px",padding:"4px 8px"}},s.w+" × "+s.r)));
+      ex.sets.forEach(s=>{
+        const TAG_LABEL = {drop:"DROP",half:"½ REP",both:"DROP+½"};
+        const tag = s.tag && s.tag!=="none" ? TAG_LABEL[s.tag]||"" : "";
+        const txt = s.w+" × "+s.r+(tag?" · "+tag:"");
+        const tagCol = s.tag==="drop"?"#ff8fa3":s.tag==="half"?"#ffb84d":s.tag==="both"?"#cc88ef":"#bbb";
+        const tagBg = s.tag==="drop"?"rgba(233,69,96,0.12)":s.tag==="half"?"rgba(255,149,0,0.12)":s.tag==="both"?"rgba(175,82,222,0.12)":"rgba(255,255,255,0.06)";
+        setsRow.appendChild(el("span",{style:{fontSize:"12px",fontFamily:"monospace",color:tagCol,background:tagBg,borderRadius:"6px",padding:"4px 8px"}},txt));
+      });
       exDiv.appendChild(setsRow);
       body.appendChild(exDiv);
     });
@@ -656,22 +684,53 @@ function renderLogScreen(muscle) {
     }
 
     // Sets
+    const TAG_CYCLE = ["none","drop","half","both"];
+    const TAG_LABEL = {none:"TAG",drop:"DROP",half:"½ REP",both:"DROP+½"};
     function rebuildSets() {
       setsContainer.innerHTML = "";
       ex.sets.forEach((s,si)=>{
-        const setRow = el("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"8px"}});
-        setRow.appendChild(el("span",{style:{fontSize:"11px",color:"#444",minWidth:"34px",textAlign:"right",flexShrink:"0"}},"Set "+(si+1)));
-        const wi = el("input",{class:"set-input",placeholder:"Wt",inputmode:"decimal",value:s.w});
+        if(!s.tag) s.tag="none";
+        // Row: label | weight | × | reps | tag | copy↓ | ✕
+        const setRow = el("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginBottom:"8px"}});
+        setRow.appendChild(el("span",{style:{fontSize:"11px",color:"#444",minWidth:"30px",textAlign:"right",flexShrink:"0"}},"S"+(si+1)));
+
+        const wi = el("input",{class:"set-input",placeholder:"Wt",inputmode:"decimal",value:s.w,style:{flex:"1.2"}});
         wi.addEventListener("input",e=>{ ex.sets[si].w=e.target.value; });
+        wi.addEventListener("focus",e=>{ setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),320); });
         setRow.appendChild(wi);
+
         setRow.appendChild(el("span",{style:{color:"#333",fontSize:"14px",flexShrink:"0"}},"×"));
-        const ri = el("input",{class:"set-input",placeholder:"Reps",inputmode:"decimal",value:s.r});
+
+        const ri = el("input",{class:"set-input",placeholder:"Reps",inputmode:"decimal",value:s.r,style:{flex:"1"}});
         ri.addEventListener("input",e=>{ ex.sets[si].r=e.target.value; });
+        ri.addEventListener("focus",e=>{ setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),320); });
         setRow.appendChild(ri);
+
+        // Tag button
+        const tagBtn = el("button",{class:"set-tag "+s.tag,onClick:()=>{
+          const next = TAG_CYCLE[(TAG_CYCLE.indexOf(s.tag)+1)%TAG_CYCLE.length];
+          ex.sets[si].tag = next;
+          tagBtn.className = "set-tag "+next;
+          tagBtn.textContent = TAG_LABEL[next];
+        }},TAG_LABEL[s.tag]);
+        setRow.appendChild(tagBtn);
+
+        // Copy-down (only if not last set)
+        if(si < ex.sets.length-1) {
+          const cpBtn = el("button",{class:"btn-copy-down",title:"Copy to next set",onClick:()=>{
+            ex.sets[si+1].w = ex.sets[si].w;
+            ex.sets[si+1].r = ex.sets[si].r;
+            rebuildSets();
+          }},"⬇");
+          setRow.appendChild(cpBtn);
+        } else {
+          setRow.appendChild(el("div",{style:{width:"38px",flexShrink:"0"}}));
+        }
+
         if(ex.sets.length>1) {
-          setRow.appendChild(el("button",{style:{background:"none",border:"none",color:"#444",fontSize:"18px",cursor:"pointer",padding:"0 2px",flexShrink:"0",minWidth:"28px",minHeight:"28px"},onClick:()=>{
-            ex.sets.splice(si,1); rebuildSets();
-          }},"✕"));
+          const delSet = el("button",{style:{background:"none",border:"none",color:"#383838",fontSize:"18px",cursor:"pointer",padding:"0",flexShrink:"0",minWidth:"24px",minHeight:"42px"}},"✕");
+          delSet.addEventListener("click",()=>{ ex.sets.splice(si,1); rebuildSets(); });
+          setRow.appendChild(delSet);
         }
         setsContainer.appendChild(setRow);
       });
@@ -774,6 +833,15 @@ function renderLogScreen(muscle) {
 }
 
 // ── BOOT ─────────────────────────────────────────────────────────────────────
+// Scroll focused input above keyboard on iOS
+if(window.visualViewport) {
+  window.visualViewport.addEventListener("resize", ()=>{
+    const focused = document.activeElement;
+    if(focused && (focused.tagName==="INPUT"||focused.tagName==="TEXTAREA")) {
+      setTimeout(()=>focused.scrollIntoView({behavior:"smooth",block:"center"}), 50);
+    }
+  });
+}
 render();
 </script>
 </body>
