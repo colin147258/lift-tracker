@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lift">
+<meta name="theme-color" content="#0d0d0f">
+<title>Lift Tracker</title>
+
+<!-- Inline SVG favicon as data URI -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230d0d0f'/%3E%3Ctext y='.9em' font-size='80' x='10'%3E🏋️%3C/text%3E%3C/svg%3E">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #0d0d0f; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif; overflow: hidden; }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; background: #0d0d0f; }
+  input, select, button, textarea { font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; }
+  button { -webkit-appearance: none; }
+  select { -webkit-appearance: none; appearance: none; }
+  ::-webkit-scrollbar { display: none; }
+  
+  .screen { 
+    position: absolute; inset: 0; 
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-top: env(safe-area-inset-top, 20px);
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
+  }
+  
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+    display: flex;
+    background: rgba(13,13,15,0.92);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tab-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 8px 2px 10px; background: none; border: none; cursor: pointer;
+    position: relative; min-height: 56px; color: #333;
+    transition: color 0.15s;
+  }
+  .tab-btn.active { color: #fff; }
+  .tab-btn svg { display: block; }
+  .tab-label { font-size: 9px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  .tab-dot { position: absolute; top: 7px; right: calc(50% - 14px); width: 7px; height: 7px; border-radius: 50%; }
+  
+  .page-header {
+    padding: 20px 16px 0;
+  }
+  
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+  .stat-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px 8px; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+  .stat-lbl { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+  
+  .muscle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+  .muscle-card {
+    border-radius: 16px; padding: 14px 12px; text-align: left; cursor: pointer;
+    border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    position: relative; min-height: 84px; width: 100%;
+    transition: transform 0.1s;
+  }
+  .muscle-card:active { transform: scale(0.97); }
+  
+  .session-card {
+    background: rgba(255,255,255,0.03); border-radius: 14px; margin-bottom: 8px;
+    overflow: hidden; border: 1px solid rgba(255,255,255,0.07);
+  }
+  .session-header {
+    width: 100%; background: none; border: none; padding: 14px 16px;
+    cursor: pointer; display: flex; align-items: center; gap: 10; min-height: 56px;
+    text-align: left;
+  }
+  .session-body { padding: 0 16px 14px; border-top: 1px solid rgba(255,255,255,0.06); }
+  
+  .chip {
+    display: inline-block; border-radius: 20px; padding: 3px 10px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+    background: rgba(255,255,255,0.08); color: #888;
+  }
+  
+  .form-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; display: block; }
+  .form-input {
+    background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 14px; color: #fff; font-size: 15px; font-family: inherit;
+    width: 100%; color-scheme: dark;
+  }
+  .form-input:focus { border-color: rgba(255,255,255,0.25); }
+  .form-input::placeholder { color: #444; }
+  
+  .set-input {
+    background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 12px 8px; color: #fff; font-size: 14px; font-family: inherit;
+    width: 100%; text-align: center; color-scheme: dark;
+  }
+  .set-input:focus { border-color: rgba(255,255,255,0.25); }
+  .set-input::placeholder { color: #444; }
+  
+  .ex-card {
+    background: rgba(255,255,255,0.04); border-radius: 16px; padding: 14px;
+    margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08);
+  }
+  
+  .btn-primary {
+    width: 100%; border: none; border-radius: 14px; padding: 17px;
+    font-size: 16px; font-weight: 700; color: #fff; cursor: pointer; font-family: inherit;
+    transition: transform 0.1s, opacity 0.1s;
+  }
+  .btn-primary:active { transform: scale(0.98); opacity: 0.85; }
+  
+  .btn-ghost {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: #888; border-radius: 12px; padding: 13px; font-size: 13px; 
+    cursor: pointer; font-weight: 600; font-family: inherit; width: 100%;
+    transition: background 0.15s;
+  }
+  .btn-ghost:active { background: rgba(255,255,255,0.1); }
+  
+  .btn-danger {
+    background: rgba(231,76,60,0.12); border: 1px solid rgba(231,76,60,0.3);
+    color: #e74c3c; border-radius: 10px; padding: 10px 14px; font-size: 12px;
+    cursor: pointer; font-weight: 600; font-family: inherit;
+  }
+  
+  .btn-add-ex {
+    width: 100%; background: transparent; border-radius: 16px;
+    padding: 14px; font-size: 14px; cursor: pointer; font-weight: 600;
+    font-family: inherit; border: 2px dashed;
+    transition: opacity 0.15s;
+  }
+  .btn-add-ex:active { opacity: 0.7; }
+  
+  .btn-add-set {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: #888; border-radius: 10px; padding: 10px; font-size: 13px;
+    cursor: pointer; width: 100%; margin-top: 4px; font-family: inherit;
+  }
+  
+  .log-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 12px 16px; padding-bottom: calc(env(safe-area-inset-bottom,0px) + 12px);
+    background: rgba(13,13,15,0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.07); z-index: 40;
+  }
+  
+  .muscle-fab {
+    position: fixed; left: 16px; right: 16px; z-index: 40;
+    bottom: calc(env(safe-area-inset-bottom,0px) + 70px);
+  }
+  
+  .overdue-banner {
+    border-radius: 12px; padding: 10px 14px; margin: 12px 0;
+    font-size: 12px; border: 1px solid;
+  }
+  
+  .freq-bar-wrap {
+    display: flex; align-items: flex-end; gap: 2px; height: 32px;
+    overflow-x: auto; margin-top: 6px; padding-bottom: 2px;
+  }
+  .freq-bar { min-width: 6px; width: 6px; border-radius: 2px; flex-shrink: 0; }
+  
+  .toast {
+    position: fixed; top: calc(env(safe-area-inset-top,20px) + 12px);
+    left: 50%; transform: translateX(-50%);
+    background: rgba(30,30,40,0.96); border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; border-radius: 20px; padding: 10px 20px;
+    font-size: 13px; font-weight: 600; z-index: 100; white-space: nowrap;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform: translateX(-50%) translateY(-8px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
+  
+  .slide-up { animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1); }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  
+  .recent-row {
+    display: flex; align-items: center; gap: 10; padding: 13px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer;
+  }
+  
+  .section-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; }
+  
+  .hidden { display: none !important; }
+  
+  .partner-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  
+  .ex-select {
+    flex: 1; background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 14px; color: #555; font-size: 15px; font-family: inherit;
+    color-scheme: dark; cursor: pointer;
+  }
+  .ex-select.has-value { color: #fff; }
+  .ex-select:focus { border-color: rgba(255,255,255,0.25); }
+
+  option { background: #1a1a22; color: #fff; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ── DATA ────────────────────────────────────────────────────────────────────
+const SEED = [
+  {id:"s_c1",muscle:"Chest",date:"2025-01-28",partner:null,preworkout:null,notes:"Benchmark",exercises:[{name:"Incline Smith",sets:[{w:"45",r:"8"},{w:"45",r:"8"},{w:"45+25",r:"6"},{w:"45+25",r:"6"}]},{name:"Flat Bench",sets:[{w:"185",r:"4"},{w:"185",r:"4"},{w:"185",r:"4"}]},{name:"Pec Deck",sets:[{w:"110",r:"12"},{w:"110",r:"12"},{w:"110",r:"12"}]},{name:"Dumbbell Bench",sets:[{w:"55",r:"8"},{w:"55",r:"8"},{w:"55",r:"8"}]}]},
+  {id:"s_c2",muscle:"Chest",date:"2025-02-06",partner:"Andrew",preworkout:"White Monster",notes:null,exercises:[{name:"Incline Smith",sets:[{w:"45",r:"8"},{w:"45+25",r:"5"}]},{name:"Pec Deck",sets:[{w:"110",r:"12"},{w:"110",r:"11"},{w:"110",r:"10"}]},{name:"Dips",sets:[{w:"BW",r:"10"},{w:"BW",r:"9"}]}]},
+  {id:"s_c3",muscle:"Chest",date:"2025-02-24",partner:null,preworkout:"White Monster",notes:null,exercises:[{name:"Incline Smith",sets:[{w:"45",r:"6"},{w:"45+25",r:"2"},{w:"45+10",r:"6"}]},{name:"Pec Deck",sets:[{w:"110",r:"12"},{w:"110",r:"12"},{w:"110",r:"12"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"12"},{w:"45",r:"10"}]}]},
+  {id:"s_c4",muscle:"Chest",date:"2025-03-06",partner:"Tristan",preworkout:"White Monster",notes:null,exercises:[{name:"Incline Smith",sets:[{w:"45",r:"6"},{w:"45+10",r:"6"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"12"},{w:"45",r:"12"},{w:"45",r:"12"}]}]},
+  {id:"s_c5",muscle:"Chest",date:"2025-04-07",partner:"Tristan",preworkout:null,notes:null,exercises:[{name:"Pec Deck",sets:[{w:"115",r:"12"},{w:"115",r:"12"},{w:"115",r:"12"}]},{name:"Dumbbell Bench",sets:[{w:"55",r:"8"},{w:"55",r:"8"},{w:"55",r:"12"}]}]},
+  {id:"s_c6",muscle:"Chest",date:"2025-08-29",partner:null,preworkout:"200mg caffeine",notes:null,exercises:[{name:"Dumbbell Incline",sets:[{w:"40",r:"10"},{w:"50",r:"8"},{w:"50",r:"8"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"12"},{w:"45",r:"6"},{w:"45",r:"8"}]}]},
+  {id:"s_c7",muscle:"Chest",date:"2025-09-05",partner:null,preworkout:"White Monster",notes:null,exercises:[{name:"Dumbbell Incline",sets:[{w:"50",r:"8"},{w:"50",r:"8"},{w:"50",r:"8"}]},{name:"Pec Deck",sets:[{w:"100",r:"12"},{w:"100",r:"12"},{w:"100",r:"9"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"10"},{w:"45",r:"9"},{w:"45",r:"7"}]}]},
+  {id:"s_c8",muscle:"Chest",date:"2025-09-11",partner:null,preworkout:null,notes:null,exercises:[{name:"Incline Smith",sets:[{w:"45",r:"8"},{w:"45",r:"8"},{w:"45",r:"6"}]},{name:"Pec Deck",sets:[{w:"100",r:"12"},{w:"100",r:"12"},{w:"100",r:"12"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"10"},{w:"45",r:"12"},{w:"45",r:"7"}]}]},
+  {id:"s_c9",muscle:"Chest",date:"2025-09-24",partner:"Andrew",preworkout:null,notes:null,exercises:[{name:"Flat Bench",sets:[{w:"185",r:"1"},{w:"165",r:"6"},{w:"165",r:"4"},{w:"95",r:"12"}]},{name:"Dips",sets:[{w:"BW",r:"6"},{w:"BW",r:"5"},{w:"BW",r:"5"}]}]},
+  {id:"s_c10",muscle:"Chest",date:"2025-10-13",partner:"Tristan",preworkout:null,notes:null,exercises:[{name:"Dumbbell Incline",sets:[{w:"50",r:"8"},{w:"55",r:"8"},{w:"60",r:"6"}]},{name:"Dumbbell Bench",sets:[{w:"45",r:"12"},{w:"45+25",r:"6"},{w:"45+25",r:"7"}]}]},
+  {id:"s_b1",muscle:"Back",date:"2025-02-02",partner:null,preworkout:null,notes:"Benchmark",exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"8"},{w:"BW",r:"8"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"10"},{w:"2pl",r:"10"}]},{name:"Lat Pull Down",sets:[{w:"60",r:"10"},{w:"60",r:"10"},{w:"60",r:"10"}]}]},
+  {id:"s_b2",muscle:"Back",date:"2025-02-08",partner:null,preworkout:"White Monster",notes:"Not great food",exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"4"},{w:"BW",r:"2"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"10"},{w:"45+10",r:"6"}]}]},
+  {id:"s_b3",muscle:"Back",date:"2025-02-14",partner:"Tristan",preworkout:"White Monster",notes:"Not great food",exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"8"},{w:"BW",r:"4.5"},{w:"BW",r:"2.5"}]},{name:"Plate Loaded Row",sets:[{w:"45s",r:"10"},{w:"45s+10",r:"10"}]}]},
+  {id:"s_b4",muscle:"Back",date:"2025-02-28",partner:null,preworkout:null,notes:"Wingstop, at shop all day",exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"6"},{w:"BW",r:"5"},{w:"BW",r:"2.5"}]}]},
+  {id:"s_b5",muscle:"Back",date:"2025-03-10",partner:"Tristan",preworkout:null,notes:"Decent, tummy hurt",exercises:[{name:"Lat Pull Down",sets:[{w:"60",r:"10"},{w:"70",r:"10"},{w:"80",r:"4"}]},{name:"Seated Row",sets:[{w:"120",r:"12"},{w:"140",r:"12"},{w:"140",r:"11"}]}]},
+  {id:"s_b6",muscle:"Back",date:"2025-08-28",partner:null,preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"6.5"},{w:"40",r:"2"},{w:"55",r:"4.5"}]},{name:"Plate Loaded Row",sets:[{w:"45+10",r:"12"},{w:"45+10",r:"12"},{w:"45+10",r:"12"}]}]},
+  {id:"s_b7",muscle:"Back",date:"2025-09-04",partner:null,preworkout:"White Monster",notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"5.5"},{w:"55",r:"8"},{w:"55",r:"7.5"}]},{name:"Plate Loaded Row",sets:[{w:"45+10",r:"12"},{w:"45+10",r:"12"},{w:"45+10",r:"12"}]}]},
+  {id:"s_b8",muscle:"Back",date:"2025-09-12",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"60",r:"6"},{w:"60",r:"4"}]},{name:"Plate Loaded Row",sets:[{w:"45+10",r:"12"},{w:"45+25",r:"12"},{w:"45+25",r:"12"}]},{name:"Single Arm Rear Delt",sets:[{w:"10",r:"7"},{w:"10",r:"8"},{w:"10",r:"10"}]}]},
+  {id:"s_b9",muscle:"Back",date:"2025-09-20",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Pull Up",sets:[{w:"65",r:"6"},{w:"65",r:"5"},{w:"65",r:"4"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"10"}]}]},
+  {id:"s_b10",muscle:"Back",date:"2025-10-13",partner:"Tristan",preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"20",r:"3"},{w:"20",r:"1"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"9"}]}]},
+  {id:"s_b11",muscle:"Back",date:"2025-11-11",partner:null,preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"5"},{w:"BW",r:"2"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"8"},{w:"2pl",r:"7"},{w:"2pl",r:"6"}]},{name:"Single Arm Rear Delt",sets:[{w:"12.5",r:"4.5"},{w:"7.5",r:"6"},{w:"7.5",r:"8"}]}]},
+  {id:"s_b12",muscle:"Back",date:"2026-04-30",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"70",r:"6"},{w:"65",r:"3"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"8"}]},{name:"Single Arm Rear Delt",sets:[{w:"10",r:"8"},{w:"10",r:"8.5"}]}]},
+  {id:"s_b13",muscle:"Back",date:"2026-06-09",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"4.5"},{w:"BW",r:"4"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"11"},{w:"2pl",r:"7.5"}]},{name:"Single Arm Rear Delt",sets:[{w:"10",r:"8.5"},{w:"10",r:"8.5"}]}]},
+  {id:"s_b14",muscle:"Back",date:"2026-06-18",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Pull Up",sets:[{w:"BW",r:"8"},{w:"BW",r:"4.5"},{w:"BW",r:"4.5"}]},{name:"Plate Loaded Row",sets:[{w:"2pl",r:"11"},{w:"2pl",r:"6"}]},{name:"Single Arm Rear Delt",sets:[{w:"10",r:"9"},{w:"10",r:"8.5"}]}]},
+  {id:"s_sh1",muscle:"Shoulders",date:"2025-01-28",partner:null,preworkout:null,notes:"Benchmark",exercises:[{name:"DB Shoulder Press",sets:[{w:"45",r:"8"},{w:"45",r:"8"},{w:"45",r:"7"}]},{name:"Lateral Raise",sets:[{w:"20",r:"15"},{w:"20",r:"15"},{w:"20",r:"15"}]},{name:"Military Press",sets:[{w:"75",r:"10"},{w:"75",r:"10"},{w:"75",r:"10"}]}]},
+  {id:"s_sh2",muscle:"Shoulders",date:"2025-02-08",partner:null,preworkout:"White Monster",notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"45",r:"8"},{w:"45",r:"8"},{w:"45",r:"8"}]},{name:"Lateral Raise",sets:[{w:"20",r:"15"},{w:"20",r:"15"},{w:"20",r:"15"}]}]},
+  {id:"s_sh3",muscle:"Shoulders",date:"2025-02-14",partner:"Tristan",preworkout:"White Monster",notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"50",r:"6"},{w:"50",r:"7"},{w:"50",r:"9"}]},{name:"Lateral Raise",sets:[{w:"20",r:"15"},{w:"20",r:"15"},{w:"20",r:"15"}]}]},
+  {id:"s_sh4",muscle:"Shoulders",date:"2025-03-10",partner:"Tristan",preworkout:null,notes:null,exercises:[{name:"Military Press",sets:[{w:"95",r:"6"},{w:"105",r:"3"},{w:"95",r:"6"}]},{name:"Lateral Raise",sets:[{w:"20",r:"15"},{w:"20",r:"15"},{w:"20",r:"15"}]}]},
+  {id:"s_sh5",muscle:"Shoulders",date:"2025-08-28",partner:null,preworkout:null,notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"40",r:"8"},{w:"40",r:"8"},{w:"40",r:"7"}]},{name:"Lateral Raise",sets:[{w:"15",r:"15"},{w:"15",r:"15"},{w:"15",r:"15"}]}]},
+  {id:"s_sh6",muscle:"Shoulders",date:"2025-09-04",partner:null,preworkout:"White Monster",notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"45",r:"8"},{w:"45",r:"7"},{w:"45",r:"5.5"}]},{name:"Lateral Raise",sets:[{w:"15",r:"15"},{w:"15",r:"15"},{w:"15",r:"15"}]}]},
+  {id:"s_sh7",muscle:"Shoulders",date:"2025-09-12",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"50",r:"6"},{w:"45",r:"8"},{w:"45",r:"6"}]},{name:"Lateral Raise",sets:[{w:"15",r:"15"},{w:"15",r:"15"},{w:"15",r:"15"}]}]},
+  {id:"s_sh8",muscle:"Shoulders",date:"2025-09-20",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"50",r:"6"},{w:"50",r:"6"}]},{name:"Lateral Raise",sets:[{w:"17.5",r:"15"},{w:"17.5",r:"15"},{w:"17.5",r:"15"}]}]},
+  {id:"s_sh9",muscle:"Shoulders",date:"2025-11-11",partner:null,preworkout:null,notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"50",r:"6"},{w:"45",r:"4"},{w:"40",r:"8"}]},{name:"Lateral Raise",sets:[{w:"17.5",r:"15"},{w:"17.5",r:"15"},{w:"17.5",r:"15"}]}]},
+  {id:"s_sh10",muscle:"Shoulders",date:"2026-04-30",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"40",r:"8"},{w:"45",r:"8"}]},{name:"Lateral Raise",sets:[{w:"17.5",r:"22"},{w:"17.5",r:"16"}]}]},
+  {id:"s_sh11",muscle:"Shoulders",date:"2026-06-09",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"45",r:"10"},{w:"45",r:"7"}]},{name:"Lateral Raise",sets:[{w:"20",r:"20"},{w:"20",r:"15"}]}]},
+  {id:"s_sh12",muscle:"Shoulders",date:"2026-06-18",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"DB Shoulder Press",sets:[{w:"45",r:"10"},{w:"45",r:"8"}]},{name:"Lateral Raise",sets:[{w:"20",r:"20"},{w:"20",r:"16"}]}]},
+  {id:"s_a1",muscle:"Arms",date:"2025-02-03",partner:"Tristan",preworkout:"333mg caffeine",notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"12"}]},{name:"Overhead Tricep Ext.",sets:[{w:"42.5",r:"12"},{w:"42.5",r:"8"},{w:"42.5",r:"5"}]},{name:"Tricep Pushdown Rope",sets:[{w:"42.5",r:"10"},{w:"50",r:"10"},{w:"57.5",r:"8"}]}]},
+  {id:"s_a2",muscle:"Arms",date:"2025-02-09",partner:null,preworkout:null,notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"12"}]},{name:"Plate Loaded Preacher",sets:[{w:"45+25",r:"8"},{w:"45+25",r:"7"},{w:"45+25",r:"6"}]},{name:"Single Arm Hammer Curl",sets:[{w:"30",r:"8"},{w:"30",r:"8"},{w:"30",r:"8"}]}]},
+  {id:"s_a3",muscle:"Arms",date:"2025-02-20",partner:"Andrew",preworkout:"White Monster",notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"10"}]},{name:"Plate Loaded Preacher",sets:[{w:"45+25",r:"8"},{w:"45+25",r:"8"},{w:"45+25",r:"8"}]},{name:"Single Arm Hammer Curl",sets:[{w:"30",r:"8"},{w:"30",r:"8"},{w:"30",r:"10"}]}]},
+  {id:"s_a4",muscle:"Arms",date:"2025-08-19",partner:null,preworkout:null,notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"8"}]},{name:"Overhead Tricep Ext.",sets:[{w:"35",r:"12"},{w:"35",r:"11"},{w:"35",r:"4"}]},{name:"Single Arm Hammer Curl",sets:[{w:"27.5",r:"8"},{w:"27.5",r:"6"},{w:"25",r:"6"}]}]},
+  {id:"s_a5",muscle:"Arms",date:"2025-09-06",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"8"}]},{name:"Overhead Tricep Ext.",sets:[{w:"35",r:"12"},{w:"35",r:"12"},{w:"35",r:"8"}]},{name:"Plate Loaded Preacher",sets:[{w:"45+10",r:"8"},{w:"45+10",r:"8"},{w:"45+10",r:"8"}]}]},
+  {id:"s_a6",muscle:"Arms",date:"2025-09-16",partner:"Tristan",preworkout:null,notes:null,exercises:[{name:"Overhead Tricep Ext.",sets:[{w:"35",r:"12"},{w:"35",r:"10"},{w:"35",r:"5"}]},{name:"Tricep Pushdown V-Bar",sets:[{w:"57.5",r:"10"},{w:"65",r:"8"}]},{name:"Bayesian Curl",sets:[{w:"50",r:"10"},{w:"65",r:"8"},{w:"45",r:"15"}]}]},
+  {id:"s_a7",muscle:"Arms",date:"2025-11-10",partner:"Andrew",preworkout:null,notes:null,exercises:[{name:"Skull Crusher",sets:[{w:"70",r:"8"},{w:"70",r:"8"},{w:"70",r:"8"}]},{name:"Bayesian Curl",sets:[{w:"12.5",r:"12"},{w:"14",r:"12"},{w:"17.5",r:"10"}]}]},
+  {id:"s_a8",muscle:"Arms",date:"2026-01-03",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Overhead Tricep Ext.",sets:[{w:"32.5",r:"12"},{w:"32.5",r:"9"},{w:"32.5",r:"5"}]},{name:"Tricep Pushdown V-Bar",sets:[{w:"62.5",r:"10"},{w:"62.5",r:"10"},{w:"62.5",r:"10"}]},{name:"Bayesian Curl",sets:[{w:"12.5",r:"12"},{w:"14",r:"12"},{w:"17.5",r:"10"}]}]},
+  {id:"s_a9",muscle:"Arms",date:"2026-03-17",partner:null,preworkout:null,notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"10"},{w:"17.5",r:"6"}]},{name:"Overhead Tricep Ext.",sets:[{w:"30",r:"12"},{w:"30",r:"10"},{w:"30",r:"6"}]},{name:"Bayesian Curl",sets:[{w:"14",r:"12"},{w:"17.5",r:"3"}]}]},
+  {id:"s_a10",muscle:"Arms",date:"2026-04-08",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"12"},{w:"17.5",r:"12"},{w:"17.5",r:"8"}]},{name:"Bayesian Curl",sets:[{w:"14",r:"16"},{w:"17.5",r:"9"}]},{name:"Assisted Dips",sets:[{w:"70",r:"8"},{w:"70",r:"4"}]}]},
+  {id:"s_a11",muscle:"Arms",date:"2026-05-18",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Overhead Tricep Ext.",sets:[{w:"30",r:"18"},{w:"30",r:"9"}]},{name:"Skull Crusher",sets:[{w:"70",r:"7"},{w:"70",r:"4"}]},{name:"Tricep Pushdown Rope",sets:[{w:"35",r:"8"},{w:"35",r:"7"}]}]},
+  {id:"s_a12",muscle:"Arms",date:"2026-06-22",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Double Cable Tricep Ext.",sets:[{w:"17.5",r:"18"},{w:"22.5",r:"7"}]},{name:"Overhead Tricep Ext.",sets:[{w:"35",r:"15"},{w:"35",r:"11"}]},{name:"Tricep Pushdown Rope",sets:[{w:"35",r:"8"},{w:"35",r:"3"}]}]},
+  {id:"s_l1",muscle:"Legs",date:"2025-01-28",partner:"Andrew",preworkout:null,notes:null,exercises:[{name:"Back Squat",sets:[{w:"175",r:"4"},{w:"155",r:"8"},{w:"155",r:"8"}]},{name:"Leg Extension",sets:[{w:"175",r:"12"},{w:"175",r:"12"},{w:"175",r:"12"}]},{name:"Seated Ham Curl",sets:[{w:"175",r:"12"},{w:"175",r:"12"},{w:"175",r:"12"}]}]},
+  {id:"s_l2",muscle:"Legs",date:"2025-02-05",partner:null,preworkout:null,notes:null,exercises:[{name:"Back Squat",sets:[{w:"135",r:"4"},{w:"175",r:"4"},{w:"155",r:"8"},{w:"155",r:"7"}]},{name:"Nordic Curl",sets:[{w:"BW",r:"4"},{w:"BW",r:"4"},{w:"BW",r:"4"}]},{name:"Leg Extension",sets:[{w:"175",r:"12"},{w:"175",r:"12"},{w:"175",r:"12"}]}]},
+  {id:"s_l3",muscle:"Legs",date:"2025-02-16",partner:null,preworkout:"White Monster",notes:"No food",exercises:[{name:"Back Squat",sets:[{w:"135",r:"4"},{w:"175",r:"4"},{w:"155",r:"8"}]},{name:"Nordic Curl",sets:[{w:"BW",r:"4"},{w:"BW",r:"4"},{w:"BW",r:"4"}]}]},
+  {id:"s_l4",muscle:"Legs",date:"2025-08-31",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Back Squat",sets:[{w:"135",r:"8"},{w:"135",r:"8"},{w:"135",r:"8"}]},{name:"Bulgarians",sets:[{w:"15",r:"10"},{w:"15",r:"5"}]},{name:"Hip Thrust",sets:[{w:"50",r:"10"},{w:"50",r:"6"}]}]},
+  {id:"s_l5",muscle:"Legs",date:"2025-09-07",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Seated Ham Curl",sets:[{w:"165",r:"12"},{w:"165",r:"12"},{w:"165",r:"12"}]},{name:"Dumbbell RDL",sets:[{w:"55",r:"10"},{w:"55",r:"10"},{w:"55",r:"10"}]},{name:"Calf Raise",sets:[{w:"55",r:"10"},{w:"60",r:"12"},{w:"70",r:"10"}]}]},
+  {id:"s_l6",muscle:"Legs",date:"2025-09-13",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Leg Extension",sets:[{w:"145",r:"12"},{w:"160",r:"12"},{w:"160",r:"12"}]},{name:"Seated Ham Curl",sets:[{w:"165",r:"12"},{w:"165",r:"12"},{w:"165",r:"12"}]}]},
+  {id:"s_l7",muscle:"Legs",date:"2025-09-21",partner:"Sarah",preworkout:"White Monster",notes:null,exercises:[{name:"Seated Ham Curl",sets:[{w:"165",r:"12"},{w:"165",r:"12"},{w:"165",r:"10"}]},{name:"Bulgarians",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"10"},{w:"2pl",r:"10"}]},{name:"Calf Raise",sets:[{w:"60",r:"12"},{w:"65",r:"12"},{w:"70",r:"12"}]}]},
+  {id:"s_l8",muscle:"Legs",date:"2025-09-25",partner:null,preworkout:null,notes:null,exercises:[{name:"Back Squat",sets:[{w:"135",r:"8"},{w:"135",r:"8"},{w:"135",r:"8"}]},{name:"Leg Extension",sets:[{w:"150",r:"12"}]},{name:"Hack Squat",sets:[{w:"45",r:"6"},{w:"45",r:"6"},{w:"45+10",r:"6"}]}]},
+  {id:"s_l9",muscle:"Legs",date:"2026-04-07",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Back Squat",sets:[{w:"135",r:"8"},{w:"135",r:"8"},{w:"135",r:"8"}]},{name:"Seated Ham Curl",sets:[{w:"165",r:"12"},{w:"165",r:"12"},{w:"165",r:"12"}]},{name:"Walking Lunges",sets:[{w:"20",r:"20"},{w:"20",r:"20"}]}]},
+  {id:"s_l10",muscle:"Legs",date:"2026-04-20",partner:"Sarah",preworkout:null,notes:null,exercises:[{name:"Dumbbell RDL",sets:[{w:"55",r:"10"},{w:"55",r:"10"},{w:"55",r:"10"}]},{name:"Bulgarians",sets:[{w:"2pl",r:"10"},{w:"2pl",r:"10"},{w:"2pl",r:"8"}]},{name:"Walking Lunges",sets:[{w:"44lb",r:"16"},{w:"44lb",r:"16"},{w:"44lb",r:"16"}]}]},
+];
+
+const LIBRARY = {
+  Chest:["Incline Smith","Flat Bench","Pec Deck","Dumbbell Incline","Dumbbell Bench","Incline Bench","Incline Chest Machine","Cable Chest Press","Lower Cable Press","Lower Chest Machine","Dips","Weird Bench Machine"],
+  Back:["Pull Up","Plate Loaded Row","Single Arm Rear Delt","Lat Pull Down","Seated Row","Bent Over Row","Barbell Row","Face Pulls","Rear Delt Cross","Prisoner Back Ext."],
+  Shoulders:["DB Shoulder Press","Lateral Raise","Military Press","Barbell Shoulder Press","Plate Loaded Shoulder Press","Cable Shoulder Press","Around the Worlds"],
+  Arms:["Double Cable Tricep Ext.","Overhead Tricep Ext.","Tricep Pushdown V-Bar","Tricep Pushdown Rope","Skull Crusher","Plate Loaded Seated Dip","Assisted Dips","Plate Loaded Preacher","Single Arm Hammer Curl","Hammer Curl","Bayesian Curl","Cable Curl","Classic Preacher"],
+  Legs:["Back Squat","Hack Squat","Leg Press","Leg Extension","Seated Ham Curl","Nordic Curl","Dumbbell RDL","Barbell RDL","Calf Raise","Bulgarians","Hip Thrust","Walking Lunges","Goblet Squat","Smith Back Squat","Sissy Squat","V-Squat Machine","Adductor Warmup"],
+};
+
+const MUSCLES = ["Chest","Back","Shoulders","Arms","Legs"];
+const COL = {
+  Chest:    {a:"#e94560",l:"#ff8fa3",dim:"rgba(233,69,96,0.12)"},
+  Back:     {a:"#3b9eff",l:"#7bbfff",dim:"rgba(59,158,255,0.12)"},
+  Shoulders:{a:"#ff9500",l:"#ffb84d",dim:"rgba(255,149,0,0.12)"},
+  Arms:     {a:"#00c8d4",l:"#66dde3",dim:"rgba(0,200,212,0.12)"},
+  Legs:     {a:"#af52de",l:"#cc88ef",dim:"rgba(175,82,222,0.12)"},
+};
+const ICON = {Chest:"◈",Back:"⊞",Shoulders:"⊛",Arms:"⊕",Legs:"⊗"};
+
+// ── STORAGE ─────────────────────────────────────────────────────────────────
+const LS_KEY = "liftlog_pwa_v1";
+function loadSessions() {
+  try { const d = localStorage.getItem(LS_KEY); return d ? JSON.parse(d) : null; } catch { return null; }
+}
+function saveSessions(s) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch(e) { console.error(e); }
+}
+
+// ── UTILS ────────────────────────────────────────────────────────────────────
+function todayStr() { return new Date().toISOString().split("T")[0]; }
+function parseD(d) { return new Date(d.split(" ")[0] + "T12:00:00"); }
+function fmtD(d) { return new Date(d + "T12:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"}); }
+function daysSince(d) { return Math.round((Date.now() - parseD(d)) / 86400000); }
+function uid() { return "u_" + Math.random().toString(36).slice(2,9); }
+function avgGap(sessions) {
+  const dates = [...sessions].sort((a,b)=>parseD(a.date)-parseD(b.date)).map(s=>parseD(s.date));
+  const gaps = [];
+  for(let i=1;i<dates.length;i++){const g=Math.round((dates[i]-dates[i-1])/86400000);if(g>0&&g<150)gaps.push(g);}
+  return gaps.length ? Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length) : null;
+}
+function el(tag, attrs={}, ...children) {
+  const e = document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)) {
+    if(k==="style"&&typeof v==="object") Object.assign(e.style, v);
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
+    else e.setAttribute(k, v);
+  }
+  for(const c of children) {
+    if(c==null||c===false) continue;
+    e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
+  return e;
+}
+function svgEl(children) {
+  const div = document.createElement("div");
+  div.innerHTML = children;
+  return div.firstChild;
+}
+
+// ── ICONS (SVG strings) ──────────────────────────────────────────────────────
+const SVGI = {
+  home: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  Chest: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
+  Back: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  Shoulders: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+  Arms: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
+  Legs: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let STATE = {
+  sessions: loadSessions() || JSON.parse(JSON.stringify(SEED)),
+  tab: "home",
+  logging: null, // muscle name or null
+  expandedSessions: new Set(),
+};
+
+function saveState() { saveSessions(STATE.sessions); }
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg) {
+  let t = document.getElementById("toast");
+  if(!t) { t = el("div",{id:"toast",class:"toast"}); document.getElementById("app").appendChild(t); }
+  t.textContent = msg;
+  t.style.display = "block";
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.style.display="none"; }, 2500);
+}
+
+// ── RENDER ENGINE ──────────────────────────────────────────────────────────────
+function render() {
+  const app = document.getElementById("app");
+  // Clear screens but keep toast and tab bar if they exist
+  const existing = app.querySelectorAll(".screen, .tab-bar, .log-overlay");
+  existing.forEach(e=>e.remove());
+
+  if(STATE.logging) {
+    app.appendChild(renderLogScreen(STATE.logging));
+  } else {
+    app.appendChild(renderTabBar());
+    if(STATE.tab === "home") app.appendChild(renderHome());
+    else app.appendChild(renderMuscle(STATE.tab));
+  }
+}
+
+// ── TAB BAR ──────────────────────────────────────────────────────────────────
+function renderTabBar() {
+  const bar = el("div",{class:"tab-bar"});
+  const tabs = ["home",...MUSCLES];
+  tabs.forEach(t => {
+    const isHome = t === "home";
+    const col = isHome ? null : COL[t];
+    const active = STATE.tab === t;
+    const ms = isHome ? [] : STATE.sessions.filter(s=>s.muscle===t);
+    const last = ms.length ? [...ms].sort((a,b)=>parseD(b.date)-parseD(a.date))[0] : null;
+    const ds = last ? daysSince(last.date) : null;
+    const ag = avgGap(ms);
+    const overdue = !isHome && ds!==null && ag && ds > ag*1.4;
+
+    const iconColor = active ? (isHome?"#fff":col.a) : "#333";
+    const labelColor = active ? (isHome?"#aaa":col.l) : "#333";
+
+    const btn = el("button",{class:"tab-btn"+(active?" active":""), onClick:()=>{ STATE.tab=t; render(); }});
+    if(overdue) btn.appendChild(el("span",{class:"tab-dot",style:{background:col.a}}));
+    const iconWrap = document.createElement("div");
+    iconWrap.innerHTML = SVGI[t] || SVGI.home;
+    iconWrap.firstChild.style.color = iconColor;
+    btn.appendChild(iconWrap.firstChild);
+    btn.appendChild(el("span",{class:"tab-label",style:{color:labelColor}},isHome?"Home":t));
+    bar.appendChild(btn);
+  });
+  return bar;
+}
+
+// ── HOME ─────────────────────────────────────────────────────────────────────
+function renderHome() {
+  const scr = el("div",{class:"screen"});
+  const pad = el("div",{style:{padding:"20px 16px 0"}});
+
+  // Title
+  pad.appendChild(el("div",{style:{fontSize:"11px",color:"#444",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:"2px"}},"Training Log"));
+  pad.appendChild(el("div",{style:{fontSize:"28px",fontWeight:"800",color:"#fff",letterSpacing:"-0.8px",marginBottom:"20px"}},"Lift Tracker"));
+
+  // Stats
+  const total = STATE.sessions.length;
+  const uniqueDays = new Set(STATE.sessions.map(s=>s.date.split(" ")[0])).size;
+  const sg = el("div",{class:"stat-grid"});
+  [[total,"Sessions"],[uniqueDays,"Gym Days"],[MUSCLES.length,"Groups"]].forEach(([v,l])=>{
+    const c = el("div",{class:"stat-card"});
+    c.appendChild(el("div",{class:"stat-val"},String(v)));
+    c.appendChild(el("div",{class:"stat-lbl"},l));
+    sg.appendChild(c);
+  });
+  pad.appendChild(sg);
+
+  // Muscle cards
+  const mg = el("div",{class:"muscle-grid"});
+  MUSCLES.forEach(m => {
+    const col = COL[m];
+    const ms = STATE.sessions.filter(s=>s.muscle===m).sort((a,b)=>parseD(b.date)-parseD(a.date));
+    const last = ms[0];
+    const ds = last ? daysSince(last.date) : null;
+    const ag = avgGap(ms);
+    const overdue = ds!==null && ag && ds>ag*1.4;
+
+    const card = el("button",{class:"muscle-card",
+      style:{background:overdue?col.dim:"rgba(255,255,255,0.04)",borderColor:overdue?col.a+"66":"rgba(255,255,255,0.08)"},
+      onClick:()=>{ STATE.tab=m; render(); }
+    });
+    if(overdue) card.appendChild(el("span",{style:{position:"absolute",top:"10px",right:"12px",width:"7px",height:"7px",borderRadius:"50%",background:col.a,display:"block"}}));
+
+    const row = el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"8px"}});
+    row.appendChild(el("span",{style:{fontSize:"18px",color:col.a}},ICON[m]));
+    row.appendChild(el("span",{style:{fontSize:"13px",fontWeight:"700",color:"#fff"}},m));
+    card.appendChild(row);
+    card.appendChild(el("div",{style:{fontSize:"11px",color:"#666"}},ms.length+" sessions"));
+    if(ds!==null) card.appendChild(el("div",{style:{fontSize:"11px",color:overdue?col.a:"#444",marginTop:"2px"}},ds+"d ago"+(ag?` · avg ${ag}d`:"")));
+    else card.appendChild(el("div",{style:{fontSize:"11px",color:"#333"}},"No sessions yet"));
+    mg.appendChild(card);
+  });
+  pad.appendChild(mg);
+
+  // Partners
+  const partners = {};
+  STATE.sessions.forEach(s=>{if(s.partner)s.partner.split(",").forEach(p=>{const t=p.trim();partners[t]=(partners[t]||0)+1;});});
+  const topP = Object.entries(partners).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  if(topP.length) {
+    pad.appendChild(el("div",{class:"section-label",style:{marginBottom:"8px"}},"Training Partners"));
+    const chips = el("div",{class:"partner-chips"});
+    topP.forEach(([p,c])=> chips.appendChild(el("span",{class:"chip"},p+" ×"+c)));
+    pad.appendChild(chips);
+  }
+
+  // Recent
+  pad.appendChild(el("div",{class:"section-label",style:{marginBottom:"8px"}},"Recent"));
+  const recent = [...STATE.sessions].sort((a,b)=>parseD(b.date)-parseD(a.date)).slice(0,8);
+  recent.forEach(s=>{
+    const col = COL[s.muscle];
+    const row = el("div",{class:"recent-row",onClick:()=>{ STATE.tab=s.muscle; render(); }});
+    row.appendChild(el("span",{style:{fontSize:"16px",color:col.a,width:"22px",textAlign:"center"}},ICON[s.muscle]));
+    const info = el("div",{style:{flex:"1"}});
+    info.appendChild(el("div",{style:{fontSize:"13px",color:col.l,fontWeight:"600"}},s.muscle));
+    info.appendChild(el("div",{style:{fontSize:"11px",color:"#555"}},s.exercises.length+" exercise"+(s.exercises.length!==1?"s":"")+(s.partner?" · w/ "+s.partner:"")));
+    row.appendChild(info);
+    row.appendChild(el("div",{style:{fontSize:"11px",color:"#444",fontFamily:"monospace"}},fmtD(s.date)));
+    pad.appendChild(row);
+  });
+
+  scr.appendChild(pad);
+  return scr;
+}
+
+// ── MUSCLE SCREEN ─────────────────────────────────────────────────────────────
+function renderMuscle(muscle) {
+  const col = COL[muscle];
+  const ms = STATE.sessions.filter(s=>s.muscle===muscle).sort((a,b)=>parseD(b.date)-parseD(a.date));
+  const ag = avgGap(ms);
+  const last = ms[0];
+  const ds = last ? daysSince(last.date) : null;
+  const overdue = ds!==null && ag && ds>ag*1.4;
+
+  const scr = el("div",{class:"screen",style:{paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 130px)"}});
+  const pad = el("div",{style:{padding:"20px 16px 0"}});
+
+  // Header
+  const hrow = el("div",{style:{display:"flex",alignItems:"flex-start",gap:"10px",marginBottom:"4px"}});
+  hrow.appendChild(el("span",{style:{fontSize:"24px",color:col.a,lineHeight:"1.2"}},ICON[muscle]));
+  const htxt = el("div");
+  htxt.appendChild(el("div",{style:{fontSize:"22px",fontWeight:"800",color:"#fff",letterSpacing:"-0.5px"}},muscle));
+  const sub = el("div",{style:{fontSize:"11px",color:"#555"}});
+  if(last) {
+    sub.appendChild(document.createTextNode("Last: "));
+    sub.appendChild(el("span",{style:{color:col.l}},fmtD(last.date)));
+    sub.appendChild(document.createTextNode(" · "+ds+"d ago"));
+    if(ag) { sub.appendChild(document.createTextNode(" · avg every ")); sub.appendChild(el("span",{style:{color:col.l}},ag+"d")); }
+  } else sub.textContent = "No sessions yet";
+  htxt.appendChild(sub);
+  hrow.appendChild(htxt);
+  pad.appendChild(hrow);
+
+  // Overdue banner
+  if(overdue) {
+    const banner = el("div",{class:"overdue-banner",style:{background:col.a+"18",borderColor:col.a+"44",color:col.l}},
+      "⚠ "+ds+"d since last — you usually train "+muscle.toLowerCase()+" every "+ag+"d.");
+    pad.appendChild(banner);
+  }
+
+  // Frequency bars
+  if(ms.length > 1) {
+    const allDates = ms.map(s=>parseD(s.date));
+    const minD = new Date(Math.min(...allDates));
+    const n = Math.ceil((Date.now()-minD)/(7*86400000))+1;
+    const weeks = Array.from({length:n},(_,i)=>{
+      const ws=new Date(minD.getTime()+i*7*86400000),we=new Date(ws.getTime()+7*86400000);
+      return ms.filter(s=>{const d=parseD(s.date);return d>=ws&&d<we;}).length;
+    });
+    const maxW = Math.max(...weeks,1);
+    pad.appendChild(el("div",{class:"section-label",style:{marginTop:"16px",marginBottom:"0"}},"Weekly frequency"));
+    const bars = el("div",{class:"freq-bar-wrap"});
+    weeks.forEach(c=>{
+      bars.appendChild(el("div",{class:"freq-bar",style:{height:c?Math.max(4,(c/maxW)*32)+"px":"3px",background:c?col.a:"rgba(255,255,255,0.06)"}}));
+    });
+    pad.appendChild(bars);
+  }
+
+  pad.appendChild(el("div",{class:"section-label",style:{marginTop:"20px",marginBottom:"10px"}},ms.length+" sessions"));
+
+  // Sessions
+  ms.forEach(s => pad.appendChild(renderSessionCard(s, col)));
+
+  scr.appendChild(pad);
+
+  // FAB
+  const fab = el("div",{class:"muscle-fab"});
+  const fabBtn = el("button",{class:"btn-primary",
+    style:{background:col.a,boxShadow:"0 4px 24px "+col.a+"55"},
+    onClick:()=>{ STATE.logging=muscle; render(); }
+  },"+ Log "+muscle+" Session");
+  fab.appendChild(fabBtn);
+  scr.appendChild(fab);
+
+  return scr;
+}
+
+// ── SESSION CARD ─────────────────────────────────────────────────────────────
+function renderSessionCard(session, col) {
+  const isNew = session.id.startsWith("u_");
+  const isOpen = STATE.expandedSessions.has(session.id);
+  const card = el("div",{class:"session-card"});
+
+  const hdr = el("button",{class:"session-header",onClick:()=>{
+    if(isOpen) STATE.expandedSessions.delete(session.id);
+    else STATE.expandedSessions.add(session.id);
+    render();
+  }});
+
+  const left = el("div",{style:{flex:"1"}});
+  const titleRow = el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"2px"}});
+  titleRow.appendChild(el("span",{style:{fontSize:"13px",color:"#fff",fontWeight:"600",fontFamily:"monospace"}},fmtD(session.date)));
+  if(isNew) titleRow.appendChild(el("span",{class:"chip",style:{color:col.a,background:col.a+"22"}},"NEW"));
+  left.appendChild(titleRow);
+  left.appendChild(el("div",{style:{fontSize:"11px",color:"#555"}},
+    session.exercises.length+" exercise"+(session.exercises.length!==1?"s":"")+(session.partner?" · w/ "+session.partner:"")));
+  hdr.appendChild(left);
+  if(session.preworkout) hdr.appendChild(el("span",{class:"chip"},session.preworkout.split(" ")[0]));
+  hdr.appendChild(el("span",{style:{color:isOpen?col.a:"#333",fontSize:"13px",transition:"transform 0.2s",transform:isOpen?"rotate(180deg)":"none",flexShrink:"0",marginLeft:"6px"}},"▼"));
+  card.appendChild(hdr);
+
+  if(isOpen) {
+    const body = el("div",{class:"session-body"});
+    if(session.notes) body.appendChild(el("div",{style:{fontSize:"11px",color:"#666",fontStyle:"italic",margin:"10px 0 8px"}},"📝 "+session.notes));
+    session.exercises.forEach((ex,i)=>{
+      const exDiv = el("div",{style:{marginBottom:"10px",paddingTop:i>0?"10px":"8px",borderTop:i>0?"1px solid rgba(255,255,255,0.05)":"none"}});
+      exDiv.appendChild(el("div",{style:{fontSize:"12px",color:col.l,fontWeight:"700",marginBottom:"6px"}},ex.name));
+      const setsRow = el("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap"}});
+      ex.sets.forEach(s=>setsRow.appendChild(el("span",{style:{fontSize:"12px",fontFamily:"monospace",color:"#bbb",background:"rgba(255,255,255,0.06)",borderRadius:"6px",padding:"4px 8px"}},s.w+" × "+s.r)));
+      exDiv.appendChild(setsRow);
+      body.appendChild(exDiv);
+    });
+    if(isNew) {
+      const delBtn = el("button",{class:"btn-danger",style:{marginTop:"10px"},onClick:()=>{
+        if(!confirm("Delete this session?")) return;
+        STATE.sessions = STATE.sessions.filter(s=>s.id!==session.id);
+        STATE.expandedSessions.delete(session.id);
+        saveState();
+        showToast("Deleted");
+        render();
+      }},"Delete session");
+      body.appendChild(delBtn);
+    }
+    card.appendChild(body);
+  }
+  return card;
+}
+
+// ── LOG SCREEN ────────────────────────────────────────────────────────────────
+function renderLogScreen(muscle) {
+  const col = COL[muscle];
+  const lib = LIBRARY[muscle]||[];
+  const mySessions = STATE.sessions.filter(s=>s.muscle===muscle).sort((a,b)=>parseD(b.date)-parseD(a.date));
+  const lastSesh = mySessions[0];
+
+  // Form state (lives in closure)
+  let date = todayStr();
+  let partner = "";
+  let preworkout = "";
+  let notes = "";
+  let exercises = [{name:"",sets:[{w:"",r:""}]}];
+
+  const overlay = el("div",{class:"screen slide-up",style:{background:"#0d0d0f",zIndex:"60",paddingBottom:"0"}});
+
+  function rebuildExercises() {
+    exContainer.innerHTML = "";
+    exercises.forEach((ex,ei)=>exContainer.appendChild(buildExCard(ei)));
+  }
+
+  function buildExCard(ei) {
+    const ex = exercises[ei];
+    const card = el("div",{class:"ex-card"});
+
+    // Select + remove
+    const selRow = el("div",{style:{display:"flex",gap:"8px",marginBottom:"12px",alignItems:"center"}});
+    const sel = el("select",{class:"ex-select"+(ex.name?" has-value":""),onChange:e=>{
+      exercises[ei].name = e.target.value;
+      sel.className = "ex-select"+(e.target.value?" has-value":"");
+    }});
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value=""; defaultOpt.textContent="— Select exercise —";
+    sel.appendChild(defaultOpt);
+    lib.forEach(l=>{const o=document.createElement("option");o.value=l;o.textContent=l;if(l===ex.name)o.selected=true;sel.appendChild(o);});
+    const customOpt = document.createElement("option");
+    customOpt.value="__custom"; customOpt.textContent="+ Custom…";
+    sel.appendChild(customOpt);
+    selRow.appendChild(sel);
+    if(exercises.length>1) {
+      selRow.appendChild(el("button",{style:{background:"rgba(231,76,60,0.15)",border:"1px solid rgba(231,76,60,0.3)",color:"#e74c3c",borderRadius:"10px",padding:"10px 12px",fontSize:"16px",cursor:"pointer",flexShrink:"0"},onClick:()=>{
+        exercises.splice(ei,1); rebuildExercises();
+      }},"✕"));
+    }
+    card.appendChild(selRow);
+
+    // Custom input
+    if(ex.name==="__custom") {
+      const ci = el("input",{class:"form-input",placeholder:"Exercise name",style:{marginBottom:"12px"},value:ex.customName||""});
+      ci.addEventListener("input",e=>{ exercises[ei].customName=e.target.value; });
+      card.appendChild(ci);
+    }
+
+    // Sets
+    function rebuildSets() {
+      setsContainer.innerHTML = "";
+      ex.sets.forEach((s,si)=>{
+        const setRow = el("div",{style:{display:"flex",gap:"8px",alignItems:"center",marginBottom:"8px"}});
+        setRow.appendChild(el("span",{style:{fontSize:"11px",color:"#444",minWidth:"34px",textAlign:"right",flexShrink:"0"}},"Set "+(si+1)));
+        const wi = el("input",{class:"set-input",placeholder:"Wt",inputmode:"decimal",value:s.w});
+        wi.addEventListener("input",e=>{ ex.sets[si].w=e.target.value; });
+        setRow.appendChild(wi);
+        setRow.appendChild(el("span",{style:{color:"#333",fontSize:"14px",flexShrink:"0"}},"×"));
+        const ri = el("input",{class:"set-input",placeholder:"Reps",inputmode:"decimal",value:s.r});
+        ri.addEventListener("input",e=>{ ex.sets[si].r=e.target.value; });
+        setRow.appendChild(ri);
+        if(ex.sets.length>1) {
+          setRow.appendChild(el("button",{style:{background:"none",border:"none",color:"#444",fontSize:"18px",cursor:"pointer",padding:"0 2px",flexShrink:"0",minWidth:"28px",minHeight:"28px"},onClick:()=>{
+            ex.sets.splice(si,1); rebuildSets();
+          }},"✕"));
+        }
+        setsContainer.appendChild(setRow);
+      });
+    }
+    const setsContainer = el("div");
+    rebuildSets();
+    card.appendChild(setsContainer);
+
+    const addSetBtn = el("button",{class:"btn-add-set",onClick:()=>{ ex.sets.push({w:"",r:""}); rebuildSets(); }},"+ Add set");
+    card.appendChild(addSetBtn);
+    return card;
+  }
+
+  // Nav bar
+  const nav = el("div",{style:{display:"flex",alignItems:"center",gap:"12px",padding:"16px 16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",paddingBottom:"16px",paddingTop:"calc(env(safe-area-inset-top,20px) + 16px)"}});
+  nav.appendChild(el("button",{style:{background:"rgba(255,255,255,0.07)",border:"none",color:"#aaa",borderRadius:"10px",padding:"8px 14px",fontSize:"14px",cursor:"pointer",fontWeight:"600",fontFamily:"inherit"},
+    onClick:()=>{ STATE.logging=null; render(); }
+  },"← Back"));
+  nav.appendChild(el("span",{style:{flex:"1",textAlign:"center",fontSize:"16px",fontWeight:"700",color:"#fff"}},ICON[muscle]+" Log "+muscle));
+  nav.appendChild(el("div",{style:{width:"60px"}}));
+  overlay.appendChild(nav);
+
+  // Scrollable form area
+  const form = el("div",{style:{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:"1",padding:"20px 16px",paddingBottom:"100px"}});
+
+  // Date & Partner
+  const g1 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"14px"}});
+  const dateLabel = el("div"); dateLabel.appendChild(el("label",{class:"form-label"},"Date")); 
+  const dateI = el("input",{class:"form-input",type:"date",value:date,style:{colorScheme:"dark"}});
+  dateI.addEventListener("change",e=>date=e.target.value);
+  dateLabel.appendChild(dateI); g1.appendChild(dateLabel);
+  const partLabel = el("div"); partLabel.appendChild(el("label",{class:"form-label"},"Partner"));
+  const partI = el("input",{class:"form-input",placeholder:"e.g. Sarah",value:partner});
+  partI.addEventListener("input",e=>partner=e.target.value);
+  partLabel.appendChild(partI); g1.appendChild(partLabel);
+  form.appendChild(g1);
+
+  const g2 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"18px"}});
+  const pwLabel = el("div"); pwLabel.appendChild(el("label",{class:"form-label"},"Pre-workout"));
+  const pwI = el("input",{class:"form-input",placeholder:"White Monster…",value:preworkout});
+  pwI.addEventListener("input",e=>preworkout=e.target.value);
+  pwLabel.appendChild(pwI); g2.appendChild(pwLabel);
+  const notesLabel = el("div"); notesLabel.appendChild(el("label",{class:"form-label"},"Notes"));
+  const notesI = el("input",{class:"form-input",placeholder:"Felt strong…",value:notes});
+  notesI.addEventListener("input",e=>notes=e.target.value);
+  notesLabel.appendChild(notesI); g2.appendChild(notesLabel);
+  form.appendChild(g2);
+
+  // Copy last
+  if(lastSesh) {
+    const copyBtn = el("button",{class:"btn-ghost",style:{marginBottom:"16px"},onClick:()=>{
+      exercises = lastSesh.exercises.map(ex=>({name:ex.name,sets:ex.sets.map(s=>({w:s.w,r:""})) }));
+      rebuildExercises();
+    }},"↺ Copy from "+fmtD(lastSesh.date));
+    form.appendChild(copyBtn);
+  }
+
+  // Exercise container
+  const exContainer = el("div");
+  form.appendChild(exContainer);
+  rebuildExercises();
+
+  // Add exercise btn
+  const addExBtn = el("button",{class:"btn-add-ex",style:{color:col.a,borderColor:col.a+"55",marginBottom:"24px"},onClick:()=>{
+    exercises.push({name:"",sets:[{w:"",r:""}]});
+    rebuildExercises();
+  }},"+ Add exercise");
+  form.appendChild(addExBtn);
+  overlay.appendChild(form);
+
+  // Footer save
+  const footer = el("div",{class:"log-footer"});
+  const saveBtn = el("button",{class:"btn-primary",style:{background:col.a,boxShadow:"0 4px 20px "+col.a+"55"},onClick:()=>{
+    const clean = exercises.filter(ex=>{
+      const name = ex.name==="__custom" ? (ex.customName||"") : ex.name;
+      return name && ex.sets.some(s=>s.w||s.r);
+    }).map(ex=>({
+      name: ex.name==="__custom"?(ex.customName||"Custom"):ex.name,
+      sets: ex.sets.filter(s=>s.w||s.r)
+    }));
+    if(!clean.length){ alert("Add at least one exercise with sets."); return; }
+    const session = {
+      id: uid(), muscle,
+      date: dateI.value||date,
+      partner: partI.value||null,
+      preworkout: pwI.value||null,
+      notes: notesI.value||null,
+      exercises: clean
+    };
+    STATE.sessions.unshift(session);
+    saveState();
+    STATE.logging = null;
+    showToast("Session saved ✓");
+    render();
+  }},"Save Session");
+  footer.appendChild(saveBtn);
+  overlay.appendChild(footer);
+
+  return overlay;
+}
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
