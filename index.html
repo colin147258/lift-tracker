@@ -220,6 +220,25 @@
     display: flex; align-items: center; justify-content: center;
   }
   .btn-copy-down:active { background: rgba(255,255,255,0.14); color: #bbb; }
+
+  /* Drop set connector — wraps a tagged set row */
+  .set-connector-wrap { position: relative; padding-left: 14px; margin-bottom: 8px; }
+  .set-connector-wrap::before {
+    content: ""; position: absolute; left: 4px; top: -10px; bottom: 50%;
+    border-left: 2px solid; border-bottom: 2px solid; border-radius: 0 0 0 6px;
+    width: 8px;
+  }
+  .set-connector-wrap.drop::before  { border-color: rgba(233,69,96,0.6); }
+  .set-connector-wrap.half::before  { border-color: rgba(255,149,0,0.6); }
+  .set-connector-wrap.both::before  { border-color: rgba(175,82,222,0.6); }
+  /* the vertical line continuing down from previous set */
+  .set-connector-wrap.has-next-tagged::after {
+    content: ""; position: absolute; left: 4px; bottom: -10px; top: 50%;
+    border-left: 2px solid;
+  }
+  .set-connector-wrap.has-next-tagged.drop::after  { border-color: rgba(233,69,96,0.6); }
+  .set-connector-wrap.has-next-tagged.half::after  { border-color: rgba(255,149,0,0.6); }
+  .set-connector-wrap.has-next-tagged.both::after  { border-color: rgba(175,82,222,0.6); }
 </style>
 </head>
 <body>
@@ -349,18 +368,23 @@ function svgEl(children) {
 // ── ICONS (SVG strings) ──────────────────────────────────────────────────────
 const SVGI = {
   home: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  Chest: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`,
-  Back: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  Shoulders: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
-  Arms: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>`,
-  Legs: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+  // Chest: two pec arcs with sternal line
+  Chest: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 C12 5 7 4 4 7 C2 9 2 13 4 15 C6 17 9 18 12 17"/><path d="M12 5 C12 5 17 4 20 7 C22 9 22 13 20 15 C18 17 15 18 12 17"/><line x1="12" y1="5" x2="12" y2="17"/></svg>`,
+  // Back: wide lat/trap shape — broad shoulders, V taper
+  Back: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4 C3 6 2 9 3 12 C4 15 6 17 8 19 C9 20 10 21 12 21 C14 21 15 20 16 19 C18 17 20 15 21 12 C22 9 21 6 19 4"/><path d="M5 4 C7 3 9 3 12 3 C15 3 17 3 19 4"/><path d="M8 8 C8 8 10 10 12 10 C14 10 16 8 16 8"/></svg>`,
+  // Shoulders: deltoid cap shape — round top, three heads implied
+  Shoulders: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14 C3 11 4 7 7 5 C9 4 11 4 12 4 C13 4 15 4 17 5 C20 7 21 11 20 14"/><path d="M4 14 C5 16 7 17 9 17 L12 17 L15 17 C17 17 19 16 20 14"/><line x1="12" y1="4" x2="12" y2="17"/></svg>`,
+  // Arms: side-view flexed bicep peak
+  Arms: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17 C5 15 5 12 6 10 C7 8 9 6 11 5 C13 4 15 5 16 7 C17 9 16 11 14 12 C13 13 12 13 12 14 L12 17"/><path d="M6 17 L12 17"/><path d="M9 17 C9 18.5 10 19.5 12 20 C14 20.5 16 20 17 19 C18 18 18 17 17 16 L12 14"/></svg>`,
+  // Legs: front quad shape — thigh with teardrop VMO
+  Legs: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3 C7 3 6 4 6 6 L7 14 C7 16 8 18 9 19 L10 21"/><path d="M15 3 C17 3 18 4 18 6 L17 14 C17 16 16 18 15 19 L14 21"/><path d="M9 3 L15 3"/><path d="M10 21 L14 21"/><path d="M7 11 C7 11 9 13 12 13 C15 13 17 11 17 11"/></svg>`,
 };
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let STATE = {
   sessions: loadSessions() || JSON.parse(JSON.stringify(SEED)),
   tab: "home",
-  logging: null, // muscle name or null
+  logging: null, // null | array of muscle names e.g. ["Back","Shoulders"]
   expandedSessions: new Set(),
 };
 
@@ -380,12 +404,11 @@ function showToast(msg) {
 // ── RENDER ENGINE ──────────────────────────────────────────────────────────────
 function render() {
   const app = document.getElementById("app");
-  // Clear screens but keep toast and tab bar if they exist
   const existing = app.querySelectorAll(".screen, .tab-bar, .log-overlay");
   existing.forEach(e=>e.remove());
 
   if(STATE.logging) {
-    app.appendChild(renderLogScreen(STATE.logging));
+    app.appendChild(renderLogScreen(STATE.logging)); // now an array
   } else {
     app.appendChild(renderTabBar());
     if(STATE.tab === "home") app.appendChild(renderHome());
@@ -564,7 +587,7 @@ function renderMuscle(muscle) {
   const fab = el("div",{class:"muscle-fab"});
   const fabBtn = el("button",{class:"btn-primary",
     style:{background:col.a,boxShadow:"0 4px 24px "+col.a+"55"},
-    onClick:()=>{ STATE.logging=muscle; render(); }
+    onClick:()=>{ STATE.logging=[muscle]; render(); }
   },"+ Log "+muscle+" Session");
   fab.appendChild(fabBtn);
   scr.appendChild(fab);
@@ -615,15 +638,33 @@ function renderSessionCard(session, col) {
       body.appendChild(exDiv);
     });
     if(isNew) {
-      const delBtn = el("button",{class:"btn-danger",style:{marginTop:"10px"},onClick:()=>{
-        if(!confirm("Delete this session?")) return;
+      const delWrap = el("div",{style:{marginTop:"10px"}});
+      const delBtn = el("button",{class:"btn-danger"},"Delete session");
+      const confirmRow = el("div",{style:{display:"none",gap:"8px",marginTop:"8px"}});
+      const confirmMsg = el("span",{style:{fontSize:"12px",color:"#aaa",flex:"1",alignSelf:"center"}},"Sure? This can't be undone.");
+      const yesBtn = el("button",{style:{background:"rgba(231,76,60,0.2)",border:"1px solid rgba(231,76,60,0.5)",color:"#e74c3c",borderRadius:"8px",padding:"8px 14px",fontSize:"12px",fontWeight:"700",cursor:"pointer",fontFamily:"inherit"}},"Delete");
+      const noBtn  = el("button",{style:{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",color:"#aaa",borderRadius:"8px",padding:"8px 14px",fontSize:"12px",fontWeight:"700",cursor:"pointer",fontFamily:"inherit"}},"Cancel");
+      confirmRow.appendChild(confirmMsg);
+      confirmRow.appendChild(yesBtn);
+      confirmRow.appendChild(noBtn);
+      delBtn.addEventListener("click",()=>{
+        delBtn.style.display="none";
+        confirmRow.style.display="flex";
+      });
+      noBtn.addEventListener("click",()=>{
+        confirmRow.style.display="none";
+        delBtn.style.display="";
+      });
+      yesBtn.addEventListener("click",()=>{
         STATE.sessions = STATE.sessions.filter(s=>s.id!==session.id);
         STATE.expandedSessions.delete(session.id);
         saveState();
-        showToast("Deleted");
+        showToast("Session deleted");
         render();
-      }},"Delete session");
-      body.appendChild(delBtn);
+      });
+      delWrap.appendChild(delBtn);
+      delWrap.appendChild(confirmRow);
+      body.appendChild(delWrap);
     }
     card.appendChild(body);
   }
@@ -631,55 +672,141 @@ function renderSessionCard(session, col) {
 }
 
 // ── LOG SCREEN ────────────────────────────────────────────────────────────────
-function renderLogScreen(muscle) {
-  const col = COL[muscle];
-  const lib = LIBRARY[muscle]||[];
-  const mySessions = STATE.sessions.filter(s=>s.muscle===muscle).sort((a,b)=>parseD(b.date)-parseD(a.date));
-  const lastSesh = mySessions[0];
+function renderLogScreen(muscles) {
+  // muscles is an array e.g. ["Back"] or ["Back","Shoulders"]
+  const primaryMuscle = muscles[0];
+  const primaryCol = COL[primaryMuscle];
 
-  // Form state (lives in closure)
+  // Shared meta
   let date = todayStr();
   let partner = "";
   let preworkout = "";
   let notes = "";
-  let exercises = [{name:"",sets:[{w:"",r:""}]}];
+
+  // Per-muscle exercise lists
+  const exData = {}; // muscle -> [{name, sets:[{w,r,tag}]}]
+  muscles.forEach(m => {
+    const last = STATE.sessions.filter(s=>s.muscle===m).sort((a,b)=>parseD(b.date)-parseD(a.date))[0];
+    exData[m] = [{name:"",sets:[{w:"",r:"",tag:"none"}]}];
+    // store last session reference for copy button
+    exData[m]._last = last || null;
+  });
+
+  // Active muscle set (for toggling)
+  let activeMuscles = [...muscles];
 
   const overlay = el("div",{class:"screen slide-up",style:{background:"#0d0d0f",zIndex:"60",paddingBottom:"0"}});
 
-  function rebuildExercises() {
-    exContainer.innerHTML = "";
-    exercises.forEach((ex,ei)=>exContainer.appendChild(buildExCard(ei)));
+  // ── NAV ──
+  const nav = el("div",{style:{display:"flex",alignItems:"center",gap:"12px",padding:"16px 16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",paddingBottom:"16px",paddingTop:"calc(env(safe-area-inset-top,20px) + 16px)"}});
+  nav.appendChild(el("button",{style:{background:"rgba(255,255,255,0.07)",border:"none",color:"#aaa",borderRadius:"10px",padding:"8px 14px",fontSize:"14px",cursor:"pointer",fontWeight:"600",fontFamily:"inherit"},
+    onClick:()=>{ STATE.logging=null; render(); }
+  },"← Back"));
+  nav.appendChild(el("span",{style:{flex:"1",textAlign:"center",fontSize:"16px",fontWeight:"700",color:"#fff"}},"Log Session"));
+  nav.appendChild(el("div",{style:{width:"60px"}}));
+  overlay.appendChild(nav);
+
+  // ── MUSCLE PICKER ──
+  const pickerWrap = el("div",{style:{padding:"14px 16px 0"}});
+  pickerWrap.appendChild(el("div",{class:"form-label",style:{marginBottom:"8px"}},"Muscle Groups"));
+  const pickerRow = el("div",{style:{display:"flex",gap:"8px",flexWrap:"wrap",marginBottom:"4px"}});
+
+  function rebuildPicker() {
+    pickerRow.innerHTML = "";
+    MUSCLES.forEach(m => {
+      const col = COL[m];
+      const active = activeMuscles.includes(m);
+      const btn = el("button",{
+        style:{
+          background: active ? col.a+"28" : "rgba(255,255,255,0.05)",
+          border: `1.5px solid ${active ? col.a : "rgba(255,255,255,0.1)"}`,
+          color: active ? col.l : "#555",
+          borderRadius:"20px", padding:"7px 14px", fontSize:"13px",
+          fontWeight:"700", cursor:"pointer", fontFamily:"inherit",
+          display:"flex", alignItems:"center", gap:"6px",
+        },
+        onClick:()=>{
+          if(active) {
+            if(activeMuscles.length===1) return; // must keep at least one
+            activeMuscles = activeMuscles.filter(x=>x!==m);
+            if(!exData[m]) exData[m] = [{name:"",sets:[{w:"",r:"",tag:"none"}]}];
+          } else {
+            activeMuscles.push(m);
+            if(!exData[m]) {
+              const last = STATE.sessions.filter(s=>s.muscle===m).sort((a,b)=>parseD(b.date)-parseD(a.date))[0];
+              exData[m] = [{name:"",sets:[{w:"",r:"",tag:"none"}]}];
+              exData[m]._last = last||null;
+            }
+          }
+          rebuildPicker();
+          rebuildAllExercises();
+        }
+      });
+      const iw = document.createElement("span");
+      iw.innerHTML = SVGI[m];
+      iw.firstChild.style.width="16px"; iw.firstChild.style.height="16px";
+      iw.firstChild.style.color = active ? col.l : "#444";
+      btn.appendChild(iw.firstChild);
+      btn.appendChild(document.createTextNode(m));
+      pickerRow.appendChild(btn);
+    });
   }
+  rebuildPicker();
+  pickerWrap.appendChild(pickerRow);
+  overlay.appendChild(pickerWrap);
 
-  function buildExCard(ei) {
-    const ex = exercises[ei];
-    const card = el("div",{class:"ex-card"});
+  // ── SCROLLABLE FORM ──
+  const form = el("div",{style:{overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"16px 16px 0",paddingBottom:"100px"}});
 
-    // Select + remove
+  // Meta fields
+  const g1 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"12px"}});
+  const dateLabel = el("div"); dateLabel.appendChild(el("label",{class:"form-label"},"Date"));
+  const dateI = el("input",{class:"form-input",type:"date",value:date,style:{colorScheme:"dark"}});
+  dateI.addEventListener("change",e=>date=e.target.value);
+  dateLabel.appendChild(dateI); g1.appendChild(dateLabel);
+  const partLabel = el("div"); partLabel.appendChild(el("label",{class:"form-label"},"Partner"));
+  const partI = el("input",{class:"form-input",placeholder:"e.g. Sarah"});
+  partI.addEventListener("input",e=>partner=e.target.value);
+  partLabel.appendChild(partI); g1.appendChild(partLabel);
+  form.appendChild(g1);
+
+  const g2 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"18px"}});
+  const pwLabel = el("div"); pwLabel.appendChild(el("label",{class:"form-label"},"Pre-workout"));
+  const pwI = el("input",{class:"form-input",placeholder:"White Monster…"});
+  pwI.addEventListener("input",e=>preworkout=e.target.value);
+  pwLabel.appendChild(pwI); g2.appendChild(pwLabel);
+  const notesLabel = el("div"); notesLabel.appendChild(el("label",{class:"form-label"},"Notes"));
+  const notesI = el("input",{class:"form-input",placeholder:"Felt strong…"});
+  notesI.addEventListener("input",e=>notes=e.target.value);
+  notesLabel.appendChild(notesI); g2.appendChild(notesLabel);
+  form.appendChild(g2);
+
+  // Per-muscle exercise sections
+  const allExContainers = {}; // muscle -> div
+
+  function buildExCard(m, ei) {
+    const col = COL[m];
+    const lib = LIBRARY[m]||[];
+    const ex = exData[m][ei];
+    const card = el("div",{class:"ex-card",style:{borderColor: col.a+"33"}});
+
     const selRow = el("div",{style:{display:"flex",gap:"8px",marginBottom:"12px",alignItems:"center"}});
-    const sel = el("select",{class:"ex-select"+(ex.name?" has-value":""),onChange:e=>{
-      exercises[ei].name = e.target.value;
-      sel.className = "ex-select"+(e.target.value?" has-value":"");
-    }});
-    const defaultOpt = document.createElement("option");
-    defaultOpt.value=""; defaultOpt.textContent="— Select exercise —";
-    sel.appendChild(defaultOpt);
+    const sel = el("select",{class:"ex-select"+(ex.name?" has-value":"")});
+    const defOpt = document.createElement("option"); defOpt.value=""; defOpt.textContent="— Select exercise —"; sel.appendChild(defOpt);
     lib.forEach(l=>{const o=document.createElement("option");o.value=l;o.textContent=l;if(l===ex.name)o.selected=true;sel.appendChild(o);});
-    const customOpt = document.createElement("option");
-    customOpt.value="__custom"; customOpt.textContent="+ Custom…";
-    sel.appendChild(customOpt);
+    const custOpt = document.createElement("option"); custOpt.value="__custom"; custOpt.textContent="+ Custom…"; sel.appendChild(custOpt);
+    sel.addEventListener("change",e=>{ exData[m][ei].name=e.target.value; sel.className="ex-select"+(e.target.value?" has-value":""); });
     selRow.appendChild(sel);
-    if(exercises.length>1) {
-      selRow.appendChild(el("button",{style:{background:"rgba(231,76,60,0.15)",border:"1px solid rgba(231,76,60,0.3)",color:"#e74c3c",borderRadius:"10px",padding:"10px 12px",fontSize:"16px",cursor:"pointer",flexShrink:"0"},onClick:()=>{
-        exercises.splice(ei,1); rebuildExercises();
-      }},"✕"));
+    if(exData[m].length>1) {
+      const rm = el("button",{style:{background:"rgba(231,76,60,0.15)",border:"1px solid rgba(231,76,60,0.3)",color:"#e74c3c",borderRadius:"10px",padding:"10px 12px",fontSize:"16px",cursor:"pointer",flexShrink:"0"}},"✕");
+      rm.addEventListener("click",()=>{ exData[m].splice(ei,1); rebuildMuscleSection(m); });
+      selRow.appendChild(rm);
     }
     card.appendChild(selRow);
 
-    // Custom input
     if(ex.name==="__custom") {
       const ci = el("input",{class:"form-input",placeholder:"Exercise name",style:{marginBottom:"12px"},value:ex.customName||""});
-      ci.addEventListener("input",e=>{ exercises[ei].customName=e.target.value; });
+      ci.addEventListener("input",e=>{ exData[m][ei].customName=e.target.value; });
       card.appendChild(ci);
     }
 
@@ -687,145 +814,151 @@ function renderLogScreen(muscle) {
     const TAG_CYCLE = ["none","drop","half","both"];
     const TAG_LABEL = {none:"TAG",drop:"DROP",half:"½ REP",both:"DROP+½"};
     function rebuildSets() {
-      setsContainer.innerHTML = "";
+      setsContainer.innerHTML="";
       ex.sets.forEach((s,si)=>{
         if(!s.tag) s.tag="none";
-        // Row: label | weight | × | reps | tag | copy↓ | ✕
-        const setRow = el("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginBottom:"8px"}});
-        setRow.appendChild(el("span",{style:{fontSize:"11px",color:"#444",minWidth:"30px",textAlign:"right",flexShrink:"0"}},"S"+(si+1)));
-
+        const isTagged = s.tag!=="none";
+        const nextTagged = si<ex.sets.length-1 && ex.sets[si+1].tag && ex.sets[si+1].tag!=="none";
+        const isLast = si===ex.sets.length-1;
+        const setRow = el("div",{style:{display:"flex",gap:"6px",alignItems:"center"}});
+        setRow.appendChild(el("span",{style:{fontSize:"11px",color:isTagged?"transparent":"#444",minWidth:"30px",textAlign:"right",flexShrink:"0"}},"S"+(si+1)));
         const wi = el("input",{class:"set-input",placeholder:"Wt",inputmode:"decimal",value:s.w,style:{flex:"1.2"}});
         wi.addEventListener("input",e=>{ ex.sets[si].w=e.target.value; });
         wi.addEventListener("focus",e=>{ setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),320); });
         setRow.appendChild(wi);
-
         setRow.appendChild(el("span",{style:{color:"#333",fontSize:"14px",flexShrink:"0"}},"×"));
-
         const ri = el("input",{class:"set-input",placeholder:"Reps",inputmode:"decimal",value:s.r,style:{flex:"1"}});
         ri.addEventListener("input",e=>{ ex.sets[si].r=e.target.value; });
         ri.addEventListener("focus",e=>{ setTimeout(()=>e.target.scrollIntoView({behavior:"smooth",block:"center"}),320); });
         setRow.appendChild(ri);
-
-        // Tag button
-        const tagBtn = el("button",{class:"set-tag "+s.tag,onClick:()=>{
-          const next = TAG_CYCLE[(TAG_CYCLE.indexOf(s.tag)+1)%TAG_CYCLE.length];
-          ex.sets[si].tag = next;
-          tagBtn.className = "set-tag "+next;
-          tagBtn.textContent = TAG_LABEL[next];
-        }},TAG_LABEL[s.tag]);
+        const tagBtn = el("button",{class:"set-tag "+s.tag},TAG_LABEL[s.tag]);
+        tagBtn.addEventListener("click",()=>{ const next=TAG_CYCLE[(TAG_CYCLE.indexOf(s.tag)+1)%TAG_CYCLE.length]; ex.sets[si].tag=next; rebuildSets(); });
         setRow.appendChild(tagBtn);
-
-        // Copy-down (only if not last set)
-        if(si < ex.sets.length-1) {
-          const cpBtn = el("button",{class:"btn-copy-down",title:"Copy to next set",onClick:()=>{
-            ex.sets[si+1].w = ex.sets[si].w;
-            ex.sets[si+1].r = ex.sets[si].r;
-            rebuildSets();
-          }},"⬇");
-          setRow.appendChild(cpBtn);
+        const cpBtn = el("button",{class:"btn-copy-down",title:isLast?"Copy & add set":"Copy to next set"},isLast?"＋":"⬇");
+        if(isLast){ cpBtn.style.borderColor="rgba(255,255,255,0.2)"; cpBtn.style.color="#aaa"; cpBtn.style.fontSize="18px"; }
+        cpBtn.addEventListener("click",()=>{
+          if(isLast) ex.sets.push({w:ex.sets[si].w,r:"",tag:"none"});
+          else { ex.sets[si+1].w=ex.sets[si].w; ex.sets[si+1].r=ex.sets[si].r; }
+          rebuildSets();
+        });
+        setRow.appendChild(cpBtn);
+        if(ex.sets.length>1){
+          const ds=el("button",{style:{background:"none",border:"none",color:"#383838",fontSize:"18px",cursor:"pointer",padding:"0",flexShrink:"0",minWidth:"24px",minHeight:"42px"}},"✕");
+          ds.addEventListener("click",()=>{ ex.sets.splice(si,1); rebuildSets(); });
+          setRow.appendChild(ds);
         } else {
-          setRow.appendChild(el("div",{style:{width:"38px",flexShrink:"0"}}));
+          setRow.appendChild(el("div",{style:{width:"24px",flexShrink:"0"}}));
         }
-
-        if(ex.sets.length>1) {
-          const delSet = el("button",{style:{background:"none",border:"none",color:"#383838",fontSize:"18px",cursor:"pointer",padding:"0",flexShrink:"0",minWidth:"24px",minHeight:"42px"}},"✕");
-          delSet.addEventListener("click",()=>{ ex.sets.splice(si,1); rebuildSets(); });
-          setRow.appendChild(delSet);
-        }
-        setsContainer.appendChild(setRow);
+        if(isTagged){
+          let cls="set-connector-wrap "+s.tag+(nextTagged?" has-next-tagged":"");
+          const wrap=el("div",{class:cls}); wrap.appendChild(setRow); setsContainer.appendChild(wrap);
+        } else { setRow.style.marginBottom="8px"; setsContainer.appendChild(setRow); }
       });
     }
     const setsContainer = el("div");
     rebuildSets();
     card.appendChild(setsContainer);
-
-    const addSetBtn = el("button",{class:"btn-add-set",onClick:()=>{ ex.sets.push({w:"",r:""}); rebuildSets(); }},"+ Add set");
+    const addSetBtn = el("button",{class:"btn-add-set"},"+ Add set");
+    addSetBtn.addEventListener("click",()=>{ ex.sets.push({w:"",r:"",tag:"none"}); rebuildSets(); });
     card.appendChild(addSetBtn);
     return card;
   }
 
-  // Nav bar
-  const nav = el("div",{style:{display:"flex",alignItems:"center",gap:"12px",padding:"16px 16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",paddingBottom:"16px",paddingTop:"calc(env(safe-area-inset-top,20px) + 16px)"}});
-  nav.appendChild(el("button",{style:{background:"rgba(255,255,255,0.07)",border:"none",color:"#aaa",borderRadius:"10px",padding:"8px 14px",fontSize:"14px",cursor:"pointer",fontWeight:"600",fontFamily:"inherit"},
-    onClick:()=>{ STATE.logging=null; render(); }
-  },"← Back"));
-  nav.appendChild(el("span",{style:{flex:"1",textAlign:"center",fontSize:"16px",fontWeight:"700",color:"#fff"}},ICON[muscle]+" Log "+muscle));
-  nav.appendChild(el("div",{style:{width:"60px"}}));
-  overlay.appendChild(nav);
-
-  // Scrollable form area
-  const form = el("div",{style:{overflowY:"auto",WebkitOverflowScrolling:"touch",flex:"1",padding:"20px 16px",paddingBottom:"100px"}});
-
-  // Date & Partner
-  const g1 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"14px"}});
-  const dateLabel = el("div"); dateLabel.appendChild(el("label",{class:"form-label"},"Date")); 
-  const dateI = el("input",{class:"form-input",type:"date",value:date,style:{colorScheme:"dark"}});
-  dateI.addEventListener("change",e=>date=e.target.value);
-  dateLabel.appendChild(dateI); g1.appendChild(dateLabel);
-  const partLabel = el("div"); partLabel.appendChild(el("label",{class:"form-label"},"Partner"));
-  const partI = el("input",{class:"form-input",placeholder:"e.g. Sarah",value:partner});
-  partI.addEventListener("input",e=>partner=e.target.value);
-  partLabel.appendChild(partI); g1.appendChild(partLabel);
-  form.appendChild(g1);
-
-  const g2 = el("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"18px"}});
-  const pwLabel = el("div"); pwLabel.appendChild(el("label",{class:"form-label"},"Pre-workout"));
-  const pwI = el("input",{class:"form-input",placeholder:"White Monster…",value:preworkout});
-  pwI.addEventListener("input",e=>preworkout=e.target.value);
-  pwLabel.appendChild(pwI); g2.appendChild(pwLabel);
-  const notesLabel = el("div"); notesLabel.appendChild(el("label",{class:"form-label"},"Notes"));
-  const notesI = el("input",{class:"form-input",placeholder:"Felt strong…",value:notes});
-  notesI.addEventListener("input",e=>notes=e.target.value);
-  notesLabel.appendChild(notesI); g2.appendChild(notesLabel);
-  form.appendChild(g2);
-
-  // Copy last
-  if(lastSesh) {
-    const copyBtn = el("button",{class:"btn-ghost",style:{marginBottom:"16px"},onClick:()=>{
-      exercises = lastSesh.exercises.map(ex=>({name:ex.name,sets:ex.sets.map(s=>({w:s.w,r:""})) }));
-      rebuildExercises();
-    }},"↺ Copy from "+fmtD(lastSesh.date));
-    form.appendChild(copyBtn);
+  function rebuildMuscleSection(m) {
+    const cont = allExContainers[m];
+    if(!cont) return;
+    cont.innerHTML="";
+    exData[m].forEach((_,ei)=>cont.appendChild(buildExCard(m,ei)));
   }
 
-  // Exercise container
-  const exContainer = el("div");
-  form.appendChild(exContainer);
-  rebuildExercises();
+  function rebuildAllExercises() {
+    muscleExWrap.innerHTML="";
+    activeMuscles.forEach(m=>{
+      const col=COL[m];
+      const last=exData[m]?._last;
 
-  // Add exercise btn
-  const addExBtn = el("button",{class:"btn-add-ex",style:{color:col.a,borderColor:col.a+"55",marginBottom:"24px"},onClick:()=>{
-    exercises.push({name:"",sets:[{w:"",r:""}]});
-    rebuildExercises();
-  }},"+ Add exercise");
-  form.appendChild(addExBtn);
+      // Section header
+      const hdr = el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px",marginTop:"6px"}});
+      const iw=document.createElement("span"); iw.innerHTML=SVGI[m];
+      iw.firstChild.style.width="16px"; iw.firstChild.style.height="16px"; iw.firstChild.style.color=col.a;
+      hdr.appendChild(iw.firstChild);
+      const mLabel = el("span",{style:{fontSize:"13px",fontWeight:"700",color:col.l}},m);
+      hdr.appendChild(mLabel);
+      // divider line
+      const line=el("div",{style:{flex:"1",height:"1px",background:col.a+"33",marginLeft:"4px"}});
+      hdr.appendChild(line);
+      muscleExWrap.appendChild(hdr);
+
+      // Copy last button
+      if(last) {
+        const cb=el("button",{class:"btn-ghost",style:{marginBottom:"10px",borderColor:col.a+"44",color:col.a+"cc"}},
+          "↺ Copy from "+fmtD(last.date));
+        cb.addEventListener("click",()=>{
+          exData[m] = last.exercises.map(ex=>({name:ex.name,sets:ex.sets.map(s=>({w:s.w,r:"",tag:"none"}))}));
+          exData[m]._last = last;
+          rebuildMuscleSection(m);
+        });
+        muscleExWrap.appendChild(cb);
+      }
+
+      // Exercise container
+      const cont = el("div");
+      allExContainers[m] = cont;
+      muscleExWrap.appendChild(cont);
+      rebuildMuscleSection(m);
+
+      // Add exercise button
+      const addBtn=el("button",{class:"btn-add-ex",style:{color:col.a,borderColor:col.a+"55",marginBottom:"20px"}},
+        "+ Add "+m+" exercise");
+      addBtn.addEventListener("click",()=>{
+        exData[m].push({name:"",sets:[{w:"",r:"",tag:"none"}]});
+        rebuildMuscleSection(m);
+      });
+      muscleExWrap.appendChild(addBtn);
+    });
+  }
+
+  const muscleExWrap = el("div");
+  form.appendChild(muscleExWrap);
+  rebuildAllExercises();
+
   overlay.appendChild(form);
 
-  // Footer save
+  // ── FOOTER SAVE ──
   const footer = el("div",{class:"log-footer"});
-  const saveBtn = el("button",{class:"btn-primary",style:{background:col.a,boxShadow:"0 4px 20px "+col.a+"55"},onClick:()=>{
-    const clean = exercises.filter(ex=>{
-      const name = ex.name==="__custom" ? (ex.customName||"") : ex.name;
-      return name && ex.sets.some(s=>s.w||s.r);
-    }).map(ex=>({
-      name: ex.name==="__custom"?(ex.customName||"Custom"):ex.name,
-      sets: ex.sets.filter(s=>s.w||s.r)
-    }));
-    if(!clean.length){ alert("Add at least one exercise with sets."); return; }
-    const session = {
-      id: uid(), muscle,
-      date: dateI.value||date,
-      partner: partI.value||null,
-      preworkout: pwI.value||null,
-      notes: notesI.value||null,
-      exercises: clean
-    };
-    STATE.sessions.unshift(session);
+  const saveBtn = el("button",{class:"btn-primary",
+    style:{background:primaryCol.a,boxShadow:"0 4px 20px "+primaryCol.a+"55"}},
+    "Save Session"+(activeMuscles.length>1?"s":""));
+  saveBtn.addEventListener("click",()=>{
+    // Build one session per active muscle
+    const newSessions = [];
+    for(const m of activeMuscles) {
+      const clean = (exData[m]||[]).filter(ex=>{
+        const name=ex.name==="__custom"?(ex.customName||""):ex.name;
+        return name && ex.sets.some(s=>s.w||s.r);
+      }).map(ex=>({
+        name:ex.name==="__custom"?(ex.customName||"Custom"):ex.name,
+        sets:ex.sets.filter(s=>s.w||s.r)
+      }));
+      if(!clean.length) continue;
+      newSessions.push({
+        id:uid(), muscle:m,
+        date:dateI.value||date,
+        partner:partI.value||null,
+        preworkout:pwI.value||null,
+        notes:notesI.value||null,
+        exercises:clean
+      });
+    }
+    if(!newSessions.length){ alert("Add at least one exercise with sets."); return; }
+    newSessions.forEach(s=>STATE.sessions.unshift(s));
     saveState();
-    STATE.logging = null;
-    showToast("Session saved ✓");
+    STATE.logging=null;
+    showToast(newSessions.length>1
+      ? newSessions.map(s=>s.muscle).join(" + ")+" saved ✓"
+      : newSessions[0].muscle+" saved ✓");
     render();
-  }},"Save Session");
+  });
   footer.appendChild(saveBtn);
   overlay.appendChild(footer);
 
