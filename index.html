@@ -401,6 +401,7 @@ let STATE = {
   tab: "home",
   logging: null, // null | array of muscle names e.g. ["Back","Shoulders"]
   expandedSessions: new Set(),
+  showBackup: false,
 };
 
 function saveState() { saveSessions(STATE.sessions); }
@@ -447,6 +448,8 @@ function render() {
 
   if(STATE.logging) {
     app.appendChild(renderLogScreen(STATE.logging)); // now an array
+  } else if(STATE.showBackup) {
+    app.appendChild(renderBackupScreen());
   } else {
     app.appendChild(renderTabBar());
     if(STATE.tab === "home") app.appendChild(renderHome());
@@ -489,8 +492,16 @@ function renderHome() {
   const pad = el("div",{style:{padding:"20px 16px 0"}});
 
   // Title
-  pad.appendChild(el("div",{style:{fontSize:"11px",color:"#444",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:"2px"}},"Training Log"));
-  pad.appendChild(el("div",{style:{fontSize:"28px",fontWeight:"800",color:"#fff",letterSpacing:"-0.8px",marginBottom:"20px"}},"Lift Tracker"));
+  const titleRow = el("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"10px",marginBottom:"20px"}});
+  const titleCol = el("div");
+  titleCol.appendChild(el("div",{style:{fontSize:"11px",color:"#444",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:"2px"}},"Training Log"));
+  titleCol.appendChild(el("div",{style:{fontSize:"28px",fontWeight:"800",color:"#fff",letterSpacing:"-0.8px"}},"Lift Tracker"));
+  titleRow.appendChild(titleCol);
+  const backupBtn = el("button",{style:{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.12)",color:"#aaa",borderRadius:"10px",padding:"8px 12px",fontSize:"12px",fontWeight:"700",cursor:"pointer",fontFamily:"inherit",marginTop:"6px",flexShrink:"0"},
+    onClick:()=>{ STATE.showBackup=true; render(); }
+  },"⇅ Backup");
+  titleRow.appendChild(backupBtn);
+  pad.appendChild(titleRow);
 
   // Stats
   const total = STATE.sessions.length;
@@ -713,6 +724,70 @@ function renderSessionCard(session, col) {
     card.appendChild(body);
   }
   return card;
+}
+
+// ── BACKUP / RESTORE ──────────────────────────────────────────────────────────
+function renderBackupScreen() {
+  const overlay = el("div",{class:"screen slide-up",style:{background:"#0d0d0f",zIndex:"60",paddingBottom:"0"}});
+
+  const nav = el("div",{style:{display:"flex",alignItems:"center",gap:"12px",padding:"16px 16px 0",borderBottom:"1px solid rgba(255,255,255,0.07)",paddingBottom:"16px",paddingTop:"calc(env(safe-area-inset-top,20px) + 16px)"}});
+  nav.appendChild(el("button",{style:{background:"rgba(255,255,255,0.07)",border:"none",color:"#aaa",borderRadius:"10px",padding:"8px 14px",fontSize:"14px",cursor:"pointer",fontWeight:"600",fontFamily:"inherit"},
+    onClick:()=>{ STATE.showBackup=false; render(); }
+  },"← Back"));
+  nav.appendChild(el("span",{style:{flex:"1",textAlign:"center",fontSize:"16px",fontWeight:"700",color:"#fff"}},"Backup & Restore"));
+  nav.appendChild(el("div",{style:{width:"60px"}}));
+  overlay.appendChild(nav);
+
+  const form = el("div",{style:{padding:"20px 16px 40px",overflowY:"auto",WebkitOverflowScrolling:"touch"}});
+
+  const mySessions = STATE.sessions.filter(s=>s.id.startsWith("u_"));
+
+  form.appendChild(el("div",{style:{fontSize:"13px",color:"#888",lineHeight:"1.6",marginBottom:"20px"}},
+    "Sessions you log only live in this phone's browser storage — there's no cloud sync. Copy the backup below somewhere safe (Notes, email to yourself) every so often. If you ever lose data, paste a backup back in below to restore it."));
+
+  // ── EXPORT ──
+  form.appendChild(el("label",{class:"form-label"},"Export — "+mySessions.length+" logged session"+(mySessions.length!==1?"s":"")));
+  const exportData = JSON.stringify(mySessions);
+  const exportBox = el("textarea",{class:"form-input",readonly:"readonly",style:{height:"110px",fontSize:"11px",fontFamily:"monospace",resize:"none",marginBottom:"10px",width:"100%"}});
+  exportBox.value = exportData;
+  form.appendChild(exportBox);
+  const copyBtn = el("button",{class:"btn-ghost",style:{marginBottom:"28px"}},"Copy to Clipboard");
+  copyBtn.addEventListener("click",()=>{
+    (navigator.clipboard && navigator.clipboard.writeText
+      ? navigator.clipboard.writeText(exportData)
+      : Promise.reject())
+      .then(()=>showToast("Copied ✓"))
+      .catch(()=>{ exportBox.focus(); exportBox.select(); showToast("Select & copy manually"); });
+  });
+  form.appendChild(copyBtn);
+
+  // ── IMPORT ──
+  form.appendChild(el("label",{class:"form-label"},"Import — paste a backup here"));
+  const importBox = el("textarea",{class:"form-input",placeholder:"Paste exported JSON here…",style:{height:"110px",fontSize:"11px",fontFamily:"monospace",resize:"none",marginBottom:"10px",width:"100%"}});
+  form.appendChild(importBox);
+  const importBtn = el("button",{class:"btn-primary",style:{background:"#3b9eff"}},"Import & Merge");
+  importBtn.addEventListener("click",()=>{
+    let parsed;
+    try { parsed = JSON.parse(importBox.value); } catch(e) { showToast("Couldn't read that — check the pasted text"); return; }
+    if(!Array.isArray(parsed)) { showToast("Expected a list of sessions"); return; }
+    const existingIds = new Set(STATE.sessions.map(s=>s.id));
+    let added = 0;
+    parsed.forEach(s=>{
+      if(s && s.id && !existingIds.has(s.id)) { STATE.sessions.push(s); existingIds.add(s.id); added++; }
+    });
+    if(added>0) {
+      saveState();
+      showToast(added+" session"+(added!==1?"s":"")+" restored ✓");
+      STATE.showBackup=false;
+      render();
+    } else {
+      showToast("Nothing new to import");
+    }
+  });
+  form.appendChild(importBtn);
+
+  overlay.appendChild(form);
+  return overlay;
 }
 
 // ── LOG SCREEN ────────────────────────────────────────────────────────────────
